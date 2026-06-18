@@ -37,8 +37,13 @@ jobs:
           set -euo pipefail
           cd /opt/email-otp-autofill
 
-          echo "==> Pulling latest main"
-          git fetch --quiet origin main
+          echo "==> Pulling latest main (retry for flaky GitHub access)"
+          ok=0
+          for i in 1 2 3 4 5; do
+            if git -c http.lowSpeedLimit=0 -c http.lowSpeedTime=60 fetch --quiet origin main; then ok=1; break; fi
+            echo "fetch attempt $i failed, retrying in 5s..."; sleep 5
+          done
+          test "$ok" = "1"
           git reset --hard origin/main
           git log --oneline -1
 
