@@ -583,6 +583,42 @@ a:hover {
 
 /* ========== multi-tenant auth ========== */
 
+/* collapsible advanced (self-hosting) section */
+.advanced {
+  margin-top: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.advanced > summary {
+  cursor: pointer;
+  padding: 9px 0;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--muted);
+  user-select: none;
+  list-style: none;
+}
+
+.advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced > summary::before {
+  content: "▸ ";
+  color: var(--faint);
+}
+
+.advanced[open] > summary::before {
+  content: "▾ ";
+}
+
+.advanced[open] {
+  padding-bottom: 10px;
+}
+
 .auth-bar {
   display: flex;
   align-items: center;

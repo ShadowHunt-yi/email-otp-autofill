@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
-import { API_KEY, API_KEY_HEADER_NAME, CLIENT_HEADER_NAME, CLIENT_HEADER_VALUE } from "../constants.js";
+import { API_KEY, API_KEY_HEADER_NAME, CLIENT_HEADER_NAME, CLIENT_HEADER_VALUE, MULTI_TENANT } from "../constants.js";
 
 function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) return false;
@@ -50,6 +50,10 @@ export function requireClientHeader(req: Request, res: Response, next: NextFunct
 }
 
 export function requireApiKey(req: Request, res: Response, next: NextFunction) {
+  // Multi-tenant public instances authenticate users by login (Bearer token),
+  // not by a shared instance API key — skip the key gate entirely. CSRF is still
+  // enforced by requireClientHeader, and business routes still require a session.
+  if (MULTI_TENANT) return next();
   if (!API_KEY) return next();
 
   const v = req.headers[API_KEY_HEADER_NAME] ?? req.headers[API_KEY_HEADER_NAME.toLowerCase()];

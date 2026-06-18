@@ -121,6 +121,32 @@ async function refresh() {
   const meta = $("meta");
   if (meta) meta.classList.remove("meta-error");
   maxAgeMs = await getMaxAgeMs();
+
+  // Agent status first — drives the dot and the multi-tenant login gate.
+  let needLogin = false;
+  try {
+    const r = await bg({ type: "BG_AGENT_STATUS" });
+    const ok = !!(r && r.ok);
+    setText("agent", t(LANG, ok ? "agent_ok" : "agent_down"));
+    setAgentPill(ok);
+    // Multi-tenant instance but no valid session → prompt the user to log in.
+    if (ok && r.status && r.status.multiTenant && !r.status.authenticated) needLogin = true;
+  } catch {
+    setText("agent", t(LANG, "agent_down"));
+    setAgentPill(false);
+  }
+
+  if (needLogin) {
+    currentOtp = null;
+    stopCountdown();
+    setText("code", "------");
+    renderSource(null);
+    $("otpBar").hidden = true;
+    setText("meta", t(LANG, "need_login_hint"));
+    if (meta) meta.classList.add("meta-error");
+    return;
+  }
+
   try {
     const r = await bg({ type: "BG_FETCH_LATEST" });
     const otp = r && r.ok ? r.otp : null;
@@ -141,16 +167,6 @@ async function refresh() {
     renderSource(null);
     $("otpBar").hidden = true;
     setText("meta", t(LANG, "agent_unreachable"));
-  }
-
-  try {
-    const r = await bg({ type: "BG_AGENT_STATUS" });
-    const ok = !!(r && r.ok);
-    setText("agent", t(LANG, ok ? "agent_ok" : "agent_down"));
-    setAgentPill(ok);
-  } catch {
-    setText("agent", t(LANG, "agent_down"));
-    setAgentPill(false);
   }
 }
 

@@ -224,22 +224,27 @@ function originPatternFromBaseUrl(baseUrl) {
   }
 }
 
+const DEFAULT_BASE_URL = "https://otp.razet.me";
+// Origins already declared in manifest host_permissions (no runtime request needed).
+const PRE_GRANTED_ORIGINS = new Set(["https://otp.razet.me/*", "http://127.0.0.1:17373/*"]);
+
 async function loadExtSettings() {
   const raw = await chrome.storage.local.get(["agentBaseUrl", "agentApiKey", "maxAgeSec"]);
-  $("agentBaseUrl").value = raw.agentBaseUrl || "http://127.0.0.1:17373";
+  $("agentBaseUrl").value = raw.agentBaseUrl || DEFAULT_BASE_URL;
   $("agentApiKey").value = raw.agentApiKey || "";
   $("maxAgeSec").value = String(Number.isFinite(raw.maxAgeSec) ? raw.maxAgeSec : 120);
 }
 
 async function saveExtSettings() {
   setMsg("saveExtMsg", T("saving"));
-  const agentBaseUrl = $("agentBaseUrl").value.trim() || "http://127.0.0.1:17373";
+  const agentBaseUrl = $("agentBaseUrl").value.trim() || DEFAULT_BASE_URL;
   const agentApiKey = $("agentApiKey").value.trim();
   const maxAgeSec = Math.max(10, Math.min(600, Number($("maxAgeSec").value || "120")));
 
   const origin = originPatternFromBaseUrl(agentBaseUrl);
   let permGranted = true;
-  if (origin && origin !== "http://127.0.0.1:17373/*") {
+  // Only request permission for custom (self-hosted) domains not already granted.
+  if (origin && !PRE_GRANTED_ORIGINS.has(origin)) {
     try {
       // IMPORTANT: permissions.request must be in a user gesture; keep before awaits.
       permGranted = await chrome.permissions.request({ origins: [origin] });
@@ -255,7 +260,7 @@ async function saveExtSettings() {
     return;
   }
 
-  if (origin && origin !== "http://127.0.0.1:17373/*" && !permGranted) {
+  if (origin && !PRE_GRANTED_ORIGINS.has(origin) && !permGranted) {
     setMsg("saveExtMsg", T("perm_not_granted", { origin }));
   } else {
     setMsg("saveExtMsg", T("saved"));

@@ -13,7 +13,7 @@ const CLIENT_HEADER_VALUE = "email-otp-autofill";
 const API_KEY_HEADER_NAME = "x-otp-agent-key";
 
 const DEFAULTS = {
-  agentBaseUrl: "http://127.0.0.1:17373",
+  agentBaseUrl: "https://otp.razet.me",
   agentApiKey: "",
   maxAgeSec: 120,
   providers: ["qq", "outlook"]

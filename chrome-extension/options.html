@@ -88,18 +88,21 @@
             <div id="agentStatus" class="card-sub" data-i18n="agent_status_checking">Checking…</div>
 
             <label for="agentBaseUrl" data-i18n="base_url">Agent Base URL</label>
-            <input id="agentBaseUrl" placeholder="http://127.0.0.1:17373" />
-            <div class="hint help-block" id="baseUrlHint">Run the agent locally: <span class="code">cd /path/to/email-otp-autofill/agent && npm run dev</span></div>
-
-            <label for="agentApiKey" data-i18n="api_key">Agent API Key</label>
-            <div class="pwd-wrap">
-              <input id="agentApiKey" type="password" data-i18n-ph="api_key_ph" placeholder="(optional for localhost, required for public domain)" />
-              <button type="button" class="pwd-toggle" data-toggle="agentApiKey" aria-label="Show password"></button>
-            </div>
-            <div class="hint" data-i18n="api_key_hint">If the agent is exposed via a domain (Cloudflare Tunnel), set `OTP_AGENT_API_KEY` on the server and paste the same value here.</div>
+            <input id="agentBaseUrl" placeholder="https://otp.razet.me" />
+            <div class="hint" data-i18n="base_url_hint2">Default is the public instance. Self-hosters can point this at their own domain.</div>
 
             <label for="maxAgeSec" data-i18n="max_age">Max OTP Age (seconds)</label>
             <input id="maxAgeSec" type="number" min="10" max="600" />
+
+            <details class="advanced">
+              <summary data-i18n="advanced">Advanced (self-hosting)</summary>
+              <label for="agentApiKey" data-i18n="api_key">Agent API Key</label>
+              <div class="pwd-wrap">
+                <input id="agentApiKey" type="password" data-i18n-ph="api_key_ph" placeholder="(optional, only for an instance that requires it)" />
+                <button type="button" class="pwd-toggle" data-toggle="agentApiKey" aria-label="Show password"></button>
+              </div>
+              <div class="hint help-block" id="baseUrlHint">Run the agent locally: <span class="code">cd /path/to/email-otp-autofill/agent && npm run dev</span></div>
+            </details>
 
             <div class="row" style="margin-top:14px;">
               <button id="saveExt" class="primary" data-i18n="save_ext">Save Extension Settings</button>

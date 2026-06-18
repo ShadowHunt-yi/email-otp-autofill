@@ -35,6 +35,8 @@
       base_url: "Agent Base URL",
       base_url_hint:
         'Run the agent locally: <span class="code">cd /path/to/email-otp-autofill/agent &amp;&amp; npm run dev</span>',
+      base_url_hint2: "Default is the public instance. Self-hosters can point this at their own domain.",
+      advanced: "Advanced (self-hosting)",
       api_key: "Agent API Key",
       api_key_ph: "(optional for localhost, required for public domain)",
       api_key_hint:
@@ -94,6 +96,7 @@
       n_sec_ago: "{n}s ago",
       copied: "Copied.",
       agent_unreachable: "Agent not reachable.",
+      need_login_hint: "Please log in — open Settings.",
       fill: "Fill",
       copy: "Copy",
       settings: "Settings",
@@ -166,6 +169,8 @@
       base_url: "Agent 地址",
       base_url_hint:
         '在本地运行 agent：<span class="code">cd /path/to/email-otp-autofill/agent &amp;&amp; npm run dev</span>',
+      base_url_hint2: "默认连接公共实例。自部署可改成你自己的域名。",
+      advanced: "高级（自部署）",
       api_key: "Agent API Key",
       api_key_ph: "（本机可留空，公网域名必填）",
       api_key_hint:
@@ -225,6 +230,7 @@
       n_sec_ago: "{n} 秒前",
       copied: "已复制。",
       agent_unreachable: "无法连接 Agent。",
+      need_login_hint: "请先登录 —— 点「设置」。",
       fill: "填充",
       copy: "复制",
       settings: "设置",
