@@ -46,6 +46,12 @@ db.exec(`
     used_at    INTEGER,
     note       TEXT
   );
+  CREATE TABLE IF NOT EXISTS sessions (
+    token      TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 `);
 
 // Additive column migrations for existing DBs. ALTER fails if the column

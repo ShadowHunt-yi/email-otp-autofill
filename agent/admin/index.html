@@ -93,7 +93,12 @@
       .switch input:checked + .slider::before { transform: translateX(20px); }
       .hidden { display: none !important; }
       a.copy { color: var(--accent); cursor: pointer; font-size: 12px; }
-      .login-wrap { max-width: 380px; margin: 60px auto 0; }
+      /* margin:auto centers the login card both axes inside the flex-column main */
+      .login-wrap { width: 100%; max-width: 420px; margin: auto; padding: 26px 28px; }
+      .login-wrap h2 { font-size: 18px; margin-bottom: 6px; }
+      .login-wrap .login-sub { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+      .login-wrap input { padding: 11px 13px; }
+      .login-wrap .primary { padding: 11px 22px; }
 
       /* header bar: title + overview + logout sticky on top */
       .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -117,7 +122,8 @@
     <main>
       <!-- login -->
       <div id="loginCard" class="card login-wrap">
-        <h2>🔑 管理员登录</h2>
+        <h2>🛡️ OTP Agent 管理端</h2>
+        <div class="login-sub">输入管理员 Token 登录</div>
         <label for="token">Admin Token</label>
         <input id="token" type="password" placeholder="OTP_ADMIN_TOKEN" />
         <div class="row" style="margin-top:14px;">

@@ -24,34 +24,37 @@ export function scopedKey(userId: string, base: string): string {
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-type Session = { userId: string; expiresAt: number };
-const sessions = new Map<string, Session>();
-
+// Sessions are persisted in SQLite so they survive agent restarts/redeploys
+// (in-memory sessions would log everyone out on every deploy).
 export function createSession(userId: string): string {
   const token = crypto.randomBytes(32).toString("base64url");
-  sessions.set(token, { userId, expiresAt: Date.now() + SESSION_TTL_MS });
+  db.prepare("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)").run(
+    token,
+    userId,
+    Date.now() + SESSION_TTL_MS
+  );
   return token;
 }
 
 export function resolveSession(token: string): string | null {
-  const s = sessions.get(token);
-  if (!s) return null;
-  if (Date.now() > s.expiresAt) {
-    sessions.delete(token);
+  const row = db.prepare("SELECT user_id, expires_at FROM sessions WHERE token = ?").get(token) as
+    | { user_id: string; expires_at: number }
+    | undefined;
+  if (!row) return null;
+  if (Date.now() > row.expires_at) {
+    db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
     return null;
   }
-  return s.userId;
+  return row.user_id;
 }
 
 export function destroySession(token: string): void {
-  sessions.delete(token);
+  db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
 }
 
 // Invalidate every active session for a user (used when an admin disables them).
 export function destroyUserSessions(userId: string): void {
-  for (const [token, s] of sessions) {
-    if (s.userId === userId) sessions.delete(token);
-  }
+  db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
 }
 
 function bearerToken(req: Request): string | null {
