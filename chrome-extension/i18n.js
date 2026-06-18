@@ -75,6 +75,10 @@
       auth_failed: "Login failed: {err}",
       switch_to_register: "Need an account? Register",
       switch_to_login: "Have an account? Log in",
+      server_settings: "Server",
+      save_connection: "Save & connect",
+      connected_ok: "Connected.",
+      conn_locked_hint: "To change the server address, log out first.",
 
       // --- shared verbs / states ---
       saving: "Saving…",
@@ -209,6 +213,10 @@
       auth_failed: "登录失败：{err}",
       switch_to_register: "没有账号？去注册",
       switch_to_login: "已有账号？去登录",
+      server_settings: "服务器",
+      save_connection: "保存并连接",
+      connected_ok: "已连接。",
+      conn_locked_hint: "要更换服务器地址，请先退出登录。",
 
       // --- shared verbs / states ---
       saving: "保存中…",

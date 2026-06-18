@@ -56,7 +56,7 @@ function refreshPwdToggleLabels() {
 
 // ---- i18n ----------------------------------------------------------------
 function applyRichI18n() {
-  const map = { baseUrlHint: "base_url_hint", qqHowto: "qq_howto", clientIdHowto: "client_id_howto" };
+  const map = { qqHowto: "qq_howto", clientIdHowto: "client_id_howto" };
   for (const id of Object.keys(map)) {
     const el = $(id);
     if (el) el.innerHTML = T(map[id]);
@@ -230,23 +230,39 @@ const PRE_GRANTED_ORIGINS = new Set(["https://otp.razet.me/*", "http://127.0.0.1
 
 async function loadExtSettings() {
   const raw = await chrome.storage.local.get(["agentBaseUrl", "agentApiKey", "maxAgeSec"]);
-  $("agentBaseUrl").value = raw.agentBaseUrl || DEFAULT_BASE_URL;
-  $("agentApiKey").value = raw.agentApiKey || "";
+  // Connection fields live in the login panel (editable only before login).
+  $("loginBaseUrl").value = raw.agentBaseUrl || DEFAULT_BASE_URL;
+  $("loginApiKey").value = raw.agentApiKey || "";
   $("maxAgeSec").value = String(Number.isFinite(raw.maxAgeSec) ? raw.maxAgeSec : 120);
 }
 
+// panelAgent save: only the post-login setting (max OTP age). The server
+// address is fixed once logged in — change it from the login panel after logout.
 async function saveExtSettings() {
   setMsg("saveExtMsg", T("saving"));
-  const agentBaseUrl = $("agentBaseUrl").value.trim() || DEFAULT_BASE_URL;
-  const agentApiKey = $("agentApiKey").value.trim();
   const maxAgeSec = Math.max(10, Math.min(600, Number($("maxAgeSec").value || "120")));
+  try {
+    await chrome.storage.local.set({ maxAgeSec });
+    setMsg("saveExtMsg", T("saved"));
+  } catch (e) {
+    setMsg("saveExtMsg", T("save_failed_with", { err: String(e && e.message ? e.message : e) }));
+    return;
+  }
+  setTimeout(() => setMsg("saveExtMsg", ""), 2500);
+}
+
+// Login-panel connection save: persists server URL + optional API key, requests
+// host permission for custom domains, then reconnects (re-checks status).
+async function saveConnection() {
+  setMsg("loginConnMsg", T("saving"));
+  const agentBaseUrl = $("loginBaseUrl").value.trim() || DEFAULT_BASE_URL;
+  const agentApiKey = $("loginApiKey").value.trim();
 
   const origin = originPatternFromBaseUrl(agentBaseUrl);
   let permGranted = true;
-  // Only request permission for custom (self-hosted) domains not already granted.
   if (origin && !PRE_GRANTED_ORIGINS.has(origin)) {
     try {
-      // IMPORTANT: permissions.request must be in a user gesture; keep before awaits.
+      // permissions.request must run in a user gesture — keep before awaits.
       permGranted = await chrome.permissions.request({ origins: [origin] });
     } catch {
       permGranted = false;
@@ -254,18 +270,18 @@ async function saveExtSettings() {
   }
 
   try {
-    await chrome.storage.local.set({ agentBaseUrl, agentApiKey, maxAgeSec });
+    await chrome.storage.local.set({ agentBaseUrl, agentApiKey });
   } catch (e) {
-    setMsg("saveExtMsg", T("save_failed_with", { err: String(e && e.message ? e.message : e) }));
+    setMsg("loginConnMsg", T("save_failed_with", { err: String(e && e.message ? e.message : e) }));
     return;
   }
 
   if (origin && !PRE_GRANTED_ORIGINS.has(origin) && !permGranted) {
-    setMsg("saveExtMsg", T("perm_not_granted", { origin }));
+    setMsg("loginConnMsg", T("perm_not_granted", { origin }));
   } else {
-    setMsg("saveExtMsg", T("saved"));
+    setMsg("loginConnMsg", T("connected_ok"));
   }
-  setTimeout(() => setMsg("saveExtMsg", ""), 2500);
+  setTimeout(() => setMsg("loginConnMsg", ""), 2500);
   await refreshStatus();
 }
 
@@ -283,6 +299,17 @@ function applyAuthState(status) {
   $("authBar").hidden = !(multiTenant && authed);
   if (layout) layout.hidden = !authed;
   return authed;
+}
+
+// Force the login panel up (used when the server is unreachable so the user can
+// still edit the server address). Opens the connection section automatically.
+function showLoginPanel() {
+  const layout = document.querySelector(".settings-layout");
+  if (layout) layout.hidden = true;
+  $("authBar").hidden = true;
+  $("loginPanel").hidden = false;
+  const conn = $("connDetails");
+  if (conn) conn.open = true;
 }
 
 async function loadMe() {
@@ -338,6 +365,9 @@ async function refreshStatus() {
       else setAgentStatus(false, "");
       accounts = [];
       renderAccountList();
+      // Can't reach / talk to the server → surface the login panel so the user
+      // can fix the server address (and log in).
+      showLoginPanel();
       return;
     }
 
@@ -528,6 +558,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setAuthMode(authMode === "login" ? "register" : "login");
   });
   $("logoutBtn").addEventListener("click", doLogout);
+  $("loginSaveConn").addEventListener("click", saveConnection);
 
   wireOauth();
   initPwdToggles();

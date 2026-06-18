@@ -46,6 +46,23 @@
         <div class="row" style="margin-top:10px;">
           <a href="#" id="authToggle" data-i18n="switch_to_register">Need an account? Register</a>
         </div>
+
+        <!-- connection / server settings, editable before login -->
+        <details class="advanced" id="connDetails">
+          <summary data-i18n="server_settings">Server</summary>
+          <label for="loginBaseUrl" data-i18n="base_url">Agent Base URL</label>
+          <input id="loginBaseUrl" placeholder="https://otp.razet.me" />
+          <div class="hint" data-i18n="base_url_hint2">Default is the public instance. Self-hosters can point this at their own domain.</div>
+          <label for="loginApiKey" data-i18n="api_key">Agent API Key</label>
+          <div class="pwd-wrap">
+            <input id="loginApiKey" type="password" data-i18n-ph="api_key_ph" placeholder="(optional, only for an instance that requires it)" />
+            <button type="button" class="pwd-toggle" data-toggle="loginApiKey" aria-label="Show password"></button>
+          </div>
+          <div class="row" style="margin-top:12px;">
+            <button id="loginSaveConn" data-i18n="save_connection">Save & connect</button>
+            <span id="loginConnMsg" class="status-msg"></span>
+          </div>
+        </details>
       </div>
 
       <div class="settings-layout">
@@ -87,22 +104,10 @@
             <div class="card-title"><span class="ic">🛰️</span><span data-i18n="agent">Agent</span></div>
             <div id="agentStatus" class="card-sub" data-i18n="agent_status_checking">Checking…</div>
 
-            <label for="agentBaseUrl" data-i18n="base_url">Agent Base URL</label>
-            <input id="agentBaseUrl" placeholder="https://otp.razet.me" />
-            <div class="hint" data-i18n="base_url_hint2">Default is the public instance. Self-hosters can point this at their own domain.</div>
-
             <label for="maxAgeSec" data-i18n="max_age">Max OTP Age (seconds)</label>
             <input id="maxAgeSec" type="number" min="10" max="600" />
 
-            <details class="advanced">
-              <summary data-i18n="advanced">Advanced (self-hosting)</summary>
-              <label for="agentApiKey" data-i18n="api_key">Agent API Key</label>
-              <div class="pwd-wrap">
-                <input id="agentApiKey" type="password" data-i18n-ph="api_key_ph" placeholder="(optional, only for an instance that requires it)" />
-                <button type="button" class="pwd-toggle" data-toggle="agentApiKey" aria-label="Show password"></button>
-              </div>
-              <div class="hint help-block" id="baseUrlHint">Run the agent locally: <span class="code">cd /path/to/email-otp-autofill/agent && npm run dev</span></div>
-            </details>
+            <div class="hint" data-i18n="conn_locked_hint">To change the server address, log out first.</div>
 
             <div class="row" style="margin-top:14px;">
               <button id="saveExt" class="primary" data-i18n="save_ext">Save Extension Settings</button>
