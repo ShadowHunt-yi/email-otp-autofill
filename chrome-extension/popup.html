@@ -11,29 +11,40 @@
   </head>
   <body>
     <main>
-      <div class="row">
-        <h1 data-i18n="app_title">Email OTP Autofill</h1>
-        <select id="uiLang" aria-label="Language" style="width:auto;">
+      <div class="app-header">
+        <div class="brand">
+          <span class="brand-logo">🔐</span>
+          <h1 data-i18n="app_title">Email OTP Autofill</h1>
+        </div>
+        <select id="uiLang" class="lang-select" aria-label="Language">
           <option value="zh">中文</option>
           <option value="en">English</option>
         </select>
       </div>
+
       <div class="card">
-        <div class="row">
-          <div>
-            <div id="code" class="code">------</div>
-            <div id="meta" class="muted" style="margin-top:6px;" data-i18n="waiting">Waiting…</div>
+        <div class="otp-stage">
+          <div id="source" class="source-tag" hidden>
+            <span id="sourceIcon" class="source-icon">📩</span>
+            <span id="sourceName">QQ</span>
           </div>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <button id="fill" class="primary" data-i18n="fill">Fill</button>
-            <button id="copy" data-i18n="copy">Copy</button>
+          <div id="code" class="code copyable" title="Click to copy">------</div>
+          <div id="otpBar" class="otp-bar" aria-hidden="true" hidden>
+            <div id="otpBarFill" class="otp-bar-fill"></div>
           </div>
+          <div id="meta" class="muted" data-i18n="waiting">Waiting…</div>
+        </div>
+
+        <div class="otp-actions">
+          <button id="fill" class="primary" data-i18n="fill">Fill</button>
+          <button id="copy" data-i18n="copy">Copy</button>
         </div>
 
         <div class="hr"></div>
+
         <div class="row">
           <span id="agent" class="pill">Agent: ?</span>
-          <button id="settings" data-i18n="settings">Settings</button>
+          <button id="settings" class="ghost-icon" data-i18n="settings">Settings</button>
         </div>
       </div>
     </main>
@@ -41,4 +52,3 @@
     <script src="popup.js"></script>
   </body>
 </html>
-

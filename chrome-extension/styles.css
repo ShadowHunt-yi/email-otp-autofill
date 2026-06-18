@@ -1,38 +1,179 @@
+/*
+ * Email OTP Autofill — UI design system
+ *
+ * Style: modern dark + glassmorphism. A single token layer (:root) drives both
+ * the popup and the options page. Legacy class selectors (.code, .pill, .muted,
+ * .hint, .card, .row, .hr, .check, .primary, .danger) are preserved because the
+ * HTML still references them directly; their look is redesigned, not removed.
+ */
+
 :root {
-  --bg: #0b0c10;
-  --panel: #12131a;
-  --muted: rgba(255, 255, 255, 0.65);
-  --text: rgba(255, 255, 255, 0.92);
+  /* base surfaces */
+  --bg: #0a0b0f;
+  --bg-glow: rgba(124, 242, 201, 0.14); /* mint halo behind content */
+  --panel: rgba(255, 255, 255, 0.045);
+  --panel-2: rgba(255, 255, 255, 0.03);
+  --panel-border: rgba(255, 255, 255, 0.09);
+  --panel-border-strong: rgba(255, 255, 255, 0.14);
+
+  /* text hierarchy */
+  --text: rgba(255, 255, 255, 0.94);
+  --muted: rgba(255, 255, 255, 0.6);
+  --faint: rgba(255, 255, 255, 0.4);
+
+  /* accent (mint) */
   --accent: #7cf2c9;
+  --accent-strong: #5fe6b6;
+  --accent-ink: #052b20; /* readable text on accent fill */
+  --accent-soft: rgba(124, 242, 201, 0.12);
+  --accent-glow: rgba(124, 242, 201, 0.32);
+
+  /* status */
+  --ok: #58e08f;
   --danger: #ff7a7a;
-  --border: rgba(255, 255, 255, 0.08);
+  --danger-soft: rgba(255, 122, 122, 0.12);
+  --warn: #ffce6b;
+
+  /* shape & motion */
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --gap: 10px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.3);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
   color: var(--text);
-  font: 13px/1.4 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font: 13px/1.5 var(--sans);
+  background: var(--bg);
+  /* Reason: layered radial glows give the flat dark base depth without images. */
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, var(--bg-glow), transparent 60%),
+    radial-gradient(80% 60% at 100% 0%, rgba(99, 140, 255, 0.08), transparent 55%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
 main {
-  padding: 12px;
+  padding: 14px;
+}
+
+/* ---------- header ---------- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.brand-logo {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-glow);
+  box-shadow: 0 0 16px var(--accent-soft);
 }
 
 h1 {
-  margin: 0 0 10px 0;
+  margin: 0;
   font-size: 14px;
+  font-weight: 650;
   letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
+/* compact language picker in the header */
+.lang-select {
+  width: auto !important;
+  padding: 5px 8px !important;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel) !important;
 }
+
+/* ---------- cards ---------- */
+
+.card {
+  position: relative;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  /* top inner highlight + soft drop shadow = glass */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    var(--shadow-sm);
+}
+
+.card + .card {
+  margin-top: 12px;
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  font-size: 13.5px;
+}
+
+.card-title .ic {
+  font-size: 15px;
+  opacity: 0.9;
+}
+
+.card-sub {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* ---------- layout helpers ---------- */
 
 .row {
   display: flex;
@@ -45,47 +186,226 @@ h1 {
   color: var(--muted);
 }
 
-.code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 20px;
-  letter-spacing: 2px;
+.hr {
+  height: 1px;
+  background: var(--panel-border);
+  margin: 14px 0;
+  border: 0;
 }
+
+/* ---------- OTP display (popup) ---------- */
+
+.otp-stage {
+  text-align: center;
+  padding: 6px 4px 2px;
+}
+
+/* source tag — which mailbox the code came from (QQ / Outlook / …) */
+.source-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 3px 10px 3px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-glow);
+}
+
+.source-tag[hidden] {
+  display: none;
+}
+
+.source-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.code {
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+  /* CSS-only grouping — never inject spaces into the text node (popup.js reads it). */
+  letter-spacing: 8px;
+  text-indent: 8px; /* compensate trailing letter-spacing for visual centering */
+  color: var(--text);
+  transition: color 0.15s var(--ease), transform 0.1s var(--ease);
+}
+
+/* clickable affordance for "click code to copy" */
+.code.copyable {
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 4px 2px;
+}
+
+.code.copyable:hover {
+  color: var(--accent);
+}
+
+.code.copyable:active {
+  transform: scale(0.98);
+}
+
+#meta {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* fill-failed hint under the code: amber, slightly stronger than muted meta */
+#meta.meta-error {
+  color: var(--warn);
+  font-weight: 550;
+}
+
+/* validity / countdown bar — width driven live by popup.js via the inner fill. */
+.otp-bar {
+  position: relative;
+  height: 4px;
+  margin: 12px auto 2px;
+  width: 80%;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.otp-bar[hidden] {
+  display: none;
+}
+
+.otp-bar-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform-origin: left center;
+  transform: scaleX(1);
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 0 10px var(--accent-glow);
+  /* 1s linear keeps the per-second JS steps from looking jumpy. */
+  transition: transform 1s linear, background 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+
+/* near-expiry + expired tints (popup.js toggles .warn / .expired) */
+.otp-bar-fill.warn {
+  background: linear-gradient(90deg, var(--warn), #ffd98a);
+  box-shadow: 0 0 10px rgba(255, 206, 107, 0.4);
+}
+
+.otp-bar-fill.expired {
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: none;
+}
+
+/* main action row */
+.otp-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.otp-actions .primary {
+  flex: 1 1 auto; /* Fill = dominant action */
+}
+
+.otp-actions #copy {
+  flex: 0 0 auto;
+}
+
+/* ---------- buttons ---------- */
 
 button {
   appearance: none;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.06);
+  font: inherit;
+  font-weight: 550;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: var(--radius);
+  padding: 9px 14px;
   cursor: pointer;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
+    transform 0.08s var(--ease), box-shadow 0.15s var(--ease);
+}
+
+button:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--panel-border-strong);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-glow);
+  outline-offset: 2px;
 }
 
 button.primary {
-  border-color: rgba(124, 242, 201, 0.35);
-  background: rgba(124, 242, 201, 0.12);
+  border: 1px solid transparent;
+  color: var(--accent-ink);
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 6px 18px var(--accent-soft), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+button.primary:hover {
+  background: linear-gradient(180deg, #8df5d3, var(--accent));
+  border-color: transparent;
 }
 
 button.danger {
+  color: var(--danger);
   border-color: rgba(255, 122, 122, 0.35);
-  background: rgba(255, 122, 122, 0.12);
+  background: var(--danger-soft);
+}
+
+button.danger:hover {
+  background: rgba(255, 122, 122, 0.2);
+  border-color: rgba(255, 122, 122, 0.5);
+}
+
+button.ghost-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 button:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
+
+/* ---------- form controls ---------- */
 
 input,
 select {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.22);
   color: var(--text);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: var(--radius);
+  padding: 9px 11px;
   outline: none;
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease),
+    background 0.15s var(--ease);
+}
+
+input::placeholder {
+  color: var(--faint);
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent-glow);
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 input[type="checkbox"] {
@@ -94,16 +414,19 @@ input[type="checkbox"] {
 
 label {
   display: block;
-  margin: 10px 0 6px 0;
+  margin: 14px 0 6px 0;
   color: var(--muted);
+  font-size: 12px;
+  font-weight: 550;
 }
 
+/* password field + eye toggle */
 .pwd-wrap {
   position: relative;
 }
 
 .pwd-wrap input {
-  padding-right: 38px;
+  padding-right: 40px;
 }
 
 .pwd-toggle {
@@ -111,20 +434,26 @@ label {
   right: 6px;
   top: 50%;
   transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
-  border-radius: 6px;
-  color: var(--muted);
+  border-radius: 7px;
+  color: var(--faint);
 }
 
 .pwd-toggle:hover {
   color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: transparent;
+}
+
+.pwd-toggle:active {
+  transform: translateY(-50%);
 }
 
 .pwd-toggle svg {
@@ -144,26 +473,97 @@ label {
   color: var(--muted);
 }
 
+/* ---------- hints & rich-text help blocks ---------- */
+
 .hint {
-  font-size: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
   color: var(--muted);
-  margin-top: 6px;
+  margin-top: 7px;
 }
 
-.hr {
-  height: 1px;
-  background: var(--border);
-  margin: 12px 0;
+/* boxed explanatory hints (#baseUrlHint / #qqHowto / #clientIdHowto):
+   the inner <a> / .code structure is untouched, only the wrapper is styled. */
+.hint.help-block {
+  margin-top: 8px;
+  padding: 9px 11px;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--panel-border);
+  border-left: 2px solid var(--accent-glow);
 }
+
+.code {
+  font-family: var(--mono);
+}
+
+/* inline code chips inside hints */
+.hint .code,
+.help-block .code {
+  font-size: 11px;
+  letter-spacing: 0;
+  text-indent: 0;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--panel-border);
+  color: var(--accent);
+}
+
+/* ---------- pills & status dots ---------- */
 
 .pill {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--panel-border);
   color: var(--muted);
   font-size: 12px;
+  font-weight: 550;
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
 }
+
+/* status dot rendered via ::before; default = neutral/grey */
+.pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+  box-shadow: 0 0 6px transparent;
+  flex: none;
+}
+
+/* state hooks: popup.js / options.js toggle these classes on the pill to tint
+   the dot — decoupled from the (localized) text content. */
+.pill.ok::before,
+.pill.configured::before {
+  background: var(--ok);
+  box-shadow: 0 0 8px rgba(88, 224, 143, 0.7);
+}
+
+.pill.ok,
+.pill.configured {
+  color: var(--ok);
+  border-color: rgba(88, 224, 143, 0.3);
+  background: rgba(88, 224, 143, 0.08);
+}
+
+.pill.off::before {
+  background: var(--danger);
+  box-shadow: 0 0 8px rgba(255, 122, 122, 0.7);
+}
+
+.pill.off {
+  color: var(--danger);
+  border-color: rgba(255, 122, 122, 0.3);
+  background: var(--danger-soft);
+}
+
+/* ---------- links ---------- */
 
 a {
   color: var(--accent);
@@ -173,3 +573,218 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+/* ---------- inline status messages (saveExtMsg, qqMsg, ...) ---------- */
+
+.status-msg {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ========== multi-tenant auth ========== */
+
+.auth-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-glow);
+}
+
+.auth-bar[hidden] {
+  display: none;
+}
+
+.login-card {
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.login-card[hidden] {
+  display: none;
+}
+
+.settings-layout[hidden] {
+  display: none;
+}
+
+/* ========== settings page: list + detail two-pane ========== */
+.settings-layout {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* left sidebar: fixed width, independently scrollable */
+.account-sidebar {
+  flex: 0 0 178px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  padding: 10px;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--shadow-sm);
+}
+
+.sidebar-section-title {
+  margin: 12px 6px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-empty {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+/* a row in the sidebar (Agent / OAuth / account / add) */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: var(--radius);
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--panel-border);
+}
+
+.nav-item.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-glow);
+  color: var(--accent);
+}
+
+.nav-ic {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.nav-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.nav-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.nav-dot.ok {
+  background: var(--ok);
+  box-shadow: 0 0 7px rgba(88, 224, 143, 0.7);
+}
+
+.nav-add {
+  margin-top: 6px;
+  color: var(--accent);
+  border: 1px dashed var(--accent-glow);
+}
+
+.nav-add:hover {
+  background: var(--accent-soft);
+  border-style: dashed;
+}
+
+/* right detail pane */
+.account-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 320px;
+  padding: 16px;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--shadow-sm);
+}
+
+.panel[hidden],
+.detail-empty[hidden] {
+  display: none;
+}
+
+/* empty state */
+.detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 280px;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.detail-empty-ic {
+  font-size: 34px;
+  opacity: 0.7;
+}
+
+.detail-empty-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.detail-empty-sub {
+  font-size: 12px;
+  color: var(--faint);
+  max-width: 240px;
+}
+
+/* stack the two panes on narrow windows */
+@media (max-width: 480px) {
+  main {
+    padding: 12px;
+  }
+  .settings-layout {
+    flex-direction: column;
+  }
+  .account-sidebar {
+    flex: none;
+    width: 100%;
+    max-height: none;
+  }
+}
+

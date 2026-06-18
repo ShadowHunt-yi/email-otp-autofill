@@ -45,6 +45,35 @@
       save_ext: "Save Extension Settings",
       language: "Language",
 
+      // --- multi-account settings page ---
+      accounts: "Accounts",
+      agent_settings: "Agent Settings",
+      add_account: "Add account",
+      add_account_title: "Add a new account",
+      account_type: "Account type",
+      type_qq: "QQ Mail (IMAP)",
+      type_outlook_imap: "Outlook (IMAP)",
+      remove_account: "Remove",
+      removing: "Removing…",
+      no_account_selected: "No account selected",
+      select_or_add: "Select an account on the left, or add a new one.",
+      save_account: "Save account",
+      account_email: "Email",
+      empty_accounts: "No accounts yet.",
+
+      // --- multi-tenant auth ---
+      login: "Log in",
+      register: "Register",
+      logout: "Log out",
+      username: "Username",
+      password: "Password",
+      logged_in_as: "Logged in as {name}",
+      login_required: "This is a shared instance. Log in or create an account.",
+      need_login: "Please log in",
+      auth_failed: "Login failed: {err}",
+      switch_to_register: "Need an account? Register",
+      switch_to_login: "Have an account? Log in",
+
       // --- shared verbs / states ---
       saving: "Saving…",
       saved: "Saved.",
@@ -68,6 +97,10 @@
       fill: "Fill",
       copy: "Copy",
       settings: "Settings",
+      source: "Source",
+      expires_in_sec: "valid for {n}s",
+      otp_expired: "Expired",
+      fill_failed_manual: "Autofill failed — please copy and paste manually.",
 
       // --- QQ ---
       qq_title: "QQ Mail (IMAP)",
@@ -143,6 +176,35 @@
       save_ext: "保存扩展设置",
       language: "语言",
 
+      // --- multi-account settings page ---
+      accounts: "邮箱账号",
+      agent_settings: "Agent 设置",
+      add_account: "添加账号",
+      add_account_title: "添加新账号",
+      account_type: "账号类型",
+      type_qq: "QQ 邮箱（IMAP）",
+      type_outlook_imap: "Outlook（IMAP）",
+      remove_account: "删除",
+      removing: "删除中…",
+      no_account_selected: "未选择账号",
+      select_or_add: "在左侧选择一个账号，或添加新账号。",
+      save_account: "保存账号",
+      account_email: "邮箱",
+      empty_accounts: "暂无账号。",
+
+      // --- multi-tenant auth ---
+      login: "登录",
+      register: "注册",
+      logout: "退出登录",
+      username: "用户名",
+      password: "密码",
+      logged_in_as: "已登录：{name}",
+      login_required: "这是一个公共实例，请登录或注册账号。",
+      need_login: "请先登录",
+      auth_failed: "登录失败：{err}",
+      switch_to_register: "没有账号？去注册",
+      switch_to_login: "已有账号？去登录",
+
       // --- shared verbs / states ---
       saving: "保存中…",
       saved: "已保存。",
@@ -166,6 +228,10 @@
       fill: "填充",
       copy: "复制",
       settings: "设置",
+      source: "来源",
+      expires_in_sec: "{n} 秒后过期",
+      otp_expired: "已过期",
+      fill_failed_manual: "填充失败，请手动复制粘贴。",
 
       // --- QQ ---
       qq_title: "QQ 邮箱（IMAP）",

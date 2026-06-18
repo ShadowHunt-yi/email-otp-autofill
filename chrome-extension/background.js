@@ -16,18 +16,17 @@ const DEFAULTS = {
   agentBaseUrl: "http://127.0.0.1:17373",
   agentApiKey: "",
   maxAgeSec: 120,
-  providers: ["qq", "outlook"],
-  autoConsume: true
+  providers: ["qq", "outlook"]
 };
 
 async function getSettings() {
-  const raw = await chrome.storage.local.get(Object.keys(DEFAULTS));
+  const raw = await chrome.storage.local.get([...Object.keys(DEFAULTS), "authToken"]);
   return {
     agentBaseUrl: raw.agentBaseUrl || DEFAULTS.agentBaseUrl,
     agentApiKey: typeof raw.agentApiKey === "string" ? raw.agentApiKey : DEFAULTS.agentApiKey,
     maxAgeSec: Number.isFinite(raw.maxAgeSec) ? raw.maxAgeSec : DEFAULTS.maxAgeSec,
     providers: Array.isArray(raw.providers) && raw.providers.length ? raw.providers : DEFAULTS.providers,
-    autoConsume: raw.autoConsume === false ? false : DEFAULTS.autoConsume
+    authToken: typeof raw.authToken === "string" ? raw.authToken : ""
   };
 }
 
@@ -37,6 +36,8 @@ async function agentFetch(path, init = {}) {
   const headers = new Headers(init.headers || {});
   headers.set(CLIENT_HEADER_NAME, CLIENT_HEADER_VALUE);
   if (s.agentApiKey) headers.set(API_KEY_HEADER_NAME, s.agentApiKey);
+  // Multi-tenant session token (no-op for single-tenant instances).
+  if (s.authToken) headers.set("authorization", `Bearer ${s.authToken}`);
   if (!headers.has("content-type") && init.body) headers.set("content-type", "application/json");
   const res = await fetch(url, { ...init, headers });
   const json = await res.json().catch(() => null);
@@ -63,10 +64,6 @@ async function fetchLatestOtpForTab(tabUrl) {
   return json.item || null;
 }
 
-async function consumeOtp(id) {
-  await agentFetch("/v1/otp/consume", { method: "POST", body: JSON.stringify({ id }) });
-}
-
 // --- New-OTP badge on the toolbar icon -------------------------------------
 
 const POLL_ALARM = "otp-poll";
@@ -88,13 +85,21 @@ async function setUnreadBadge(count) {
 // the toolbar icon with the unread count. Silent on failure (agent down/unset).
 async function pollForNewOtp() {
   try {
+    const s = await getSettings();
     const json = await agentFetch("/v1/otp/list", { method: "GET" });
     const items = (json && json.items) || [];
     const { lastSeenOtpTs = 0 } = await chrome.storage.local.get(["lastSeenOtpTs"]);
-    // Reason: an OTP is "new" if it arrived after the user last viewed/filled
-    // and has not been consumed yet.
+    const now = Date.now();
+    const maxAgeMs = Math.max(1, s.maxAgeSec) * 1000;
+    // Reason: an OTP is "unread" only if it arrived after the user last
+    // viewed/filled AND is still within its validity window. Expired codes must
+    // not keep the badge lit. We no longer consume on fill, so consumedAt is not
+    // used for badge state — "seen" (lastSeenOtpTs) is the single source.
     const unread = items.filter(
-      (it) => it && !it.consumedAt && Number(it.receivedAt) > lastSeenOtpTs
+      (it) =>
+        it &&
+        Number(it.receivedAt) > lastSeenOtpTs &&
+        now - Number(it.receivedAt) <= (it.ttlSec && it.ttlSec > 0 ? it.ttlSec * 1000 : maxAgeMs)
     );
     await setUnreadBadge(unread.length);
   } catch {
@@ -144,14 +149,10 @@ async function fillOnActiveTab() {
 
   const result = await chrome.tabs.sendMessage(tab.id, { type: "OTP_FILL", code: otp.code });
   if (result && result.ok) {
-    const s = await getSettings();
-    if (s.autoConsume && otp.id) {
-      try {
-        await consumeOtp(otp.id);
-      } catch {
-        // ignore consume errors
-      }
-    }
+    // Reason: we intentionally do NOT consume the OTP here. The code must stay
+    // visible in the popup for its whole validity window (maxAgeSec) even after
+    // filling — consuming would drop it from /v1/otp/latest immediately.
+    // Marking it "seen" only clears the unread badge; it stays fetchable.
     await markAllOtpSeen();
     return { ok: true };
   }
@@ -195,6 +196,40 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       return;
     }
 
+    // --- multi-tenant auth ---
+    if (msg.type === "BG_AUTH_REGISTER" || msg.type === "BG_AUTH_LOGIN") {
+      const path = msg.type === "BG_AUTH_REGISTER" ? "/v1/auth/register" : "/v1/auth/login";
+      const json = await agentFetch(path, {
+        method: "POST",
+        body: JSON.stringify({ username: msg.username, password: msg.password })
+      });
+      // Persist the session token; agentFetch attaches it on subsequent calls.
+      if (json && json.token) await chrome.storage.local.set({ authToken: json.token });
+      sendResponse({ ok: true, user: json.user });
+      return;
+    }
+
+    if (msg.type === "BG_AUTH_LOGOUT") {
+      try {
+        await agentFetch("/v1/auth/logout", { method: "POST", body: JSON.stringify({}) });
+      } catch {
+        // ignore — clear locally regardless
+      }
+      await chrome.storage.local.remove("authToken");
+      sendResponse({ ok: true });
+      return;
+    }
+
+    if (msg.type === "BG_AUTH_ME") {
+      try {
+        const json = await agentFetch("/v1/auth/me", { method: "GET" });
+        sendResponse({ ok: true, user: json.user });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e && e.message ? e.message : e) });
+      }
+      return;
+    }
+
     if (msg.type === "BG_QQ_CONFIG") {
       const { email, authCode } = msg;
       const json = await agentFetch("/v1/qq/config", {
@@ -211,10 +246,19 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       return;
     }
 
+    if (msg.type === "BG_QQ_REMOVE") {
+      const json = await agentFetch("/v1/qq/remove", {
+        method: "POST",
+        body: JSON.stringify({ email: msg.email })
+      });
+      sendResponse({ ok: true, result: json });
+      return;
+    }
+
     if (msg.type === "BG_REVEAL_SECRET") {
       const json = await agentFetch("/v1/secret/reveal", {
         method: "POST",
-        body: JSON.stringify({ kind: msg.kind })
+        body: JSON.stringify({ kind: msg.kind, email: msg.email })
       });
       sendResponse({ ok: true, value: json.value });
       return;
@@ -231,6 +275,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
     if (msg.type === "BG_OUTLOOK_CLEAR") {
       const json = await agentFetch("/v1/outlook/clear", { method: "POST", body: JSON.stringify({}) });
+      sendResponse({ ok: true, result: json });
+      return;
+    }
+
+    if (msg.type === "BG_OUTLOOK_IMAP_REMOVE") {
+      const json = await agentFetch("/v1/outlook/imap/remove", {
+        method: "POST",
+        body: JSON.stringify({ email: msg.email })
+      });
       sendResponse({ ok: true, result: json });
       return;
     }

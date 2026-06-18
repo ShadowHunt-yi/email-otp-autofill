@@ -1,7 +1,6 @@
 const { t, getUiLang, setUiLang, applyStaticI18n } = globalThis.OtpI18n;
 
 let LANG = "en";
-// Shorthand: translate with the current language.
 const T = (key, vars) => t(LANG, key, vars);
 
 function $(id) {
@@ -17,12 +16,14 @@ function setMsg(id, text) {
   if (el) el.textContent = text || "";
 }
 
-function setAgentStatus(ok, detail) {
-  setMsg("agentStatus", T(ok ? "agent_ok_detail" : "agent_down_detail", { detail: detail || "" }));
-}
+// ---- account model -------------------------------------------------------
+// A flat list of mailbox accounts built from /v1/status. Each entry:
+//   { type: "qq" | "outlook_imap", email, configured }
+let accounts = [];
+// What the right panel is currently showing.
+let selected = null; // "agent" | "oauth" | "add" | {type,email} | null
 
-// Eye icons for the per-field password visibility toggle (feather-style SVG,
-// stroke=currentColor so they inherit the muted/hover color from CSS).
+// ---- password eye toggle (unchanged behavior) ----------------------------
 const EYE_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_OFF_ICON =
@@ -30,12 +31,10 @@ const EYE_OFF_ICON =
 
 function setPwdVisible(input, btn, visible) {
   input.type = visible ? "text" : "password";
-  // Show the "eye-off" icon while visible (clicking it hides again), and vice versa.
   btn.innerHTML = visible ? EYE_OFF_ICON : EYE_ICON;
   btn.setAttribute("aria-label", T(visible ? "hide_password" : "show_password"));
 }
 
-// Wire up every .pwd-toggle button to its input (via data-toggle="<inputId>").
 function initPwdToggles() {
   document.querySelectorAll(".pwd-toggle").forEach((btn) => {
     const input = $(btn.getAttribute("data-toggle"));
@@ -47,7 +46,6 @@ function initPwdToggles() {
   });
 }
 
-// Refresh the toggle aria-labels after a language switch (icons stay as-is).
 function refreshPwdToggleLabels() {
   document.querySelectorAll(".pwd-toggle").forEach((btn) => {
     const input = $(btn.getAttribute("data-toggle"));
@@ -56,7 +54,7 @@ function refreshPwdToggleLabels() {
   });
 }
 
-// Rich-text hints (contain HTML) are set here, not via applyStaticI18n.
+// ---- i18n ----------------------------------------------------------------
 function applyRichI18n() {
   const map = { baseUrlHint: "base_url_hint", qqHowto: "qq_howto", clientIdHowto: "client_id_howto" };
   for (const id of Object.keys(map)) {
@@ -72,6 +70,148 @@ function applyLang(lang) {
   refreshPwdToggleLabels();
   const sel = $("uiLang");
   if (sel) sel.value = LANG;
+  // Re-apply dynamic auth labels (login/register) after static i18n overwrites.
+  setAuthMode(authMode);
+  renderAccountList();
+}
+
+// ---- panel switching -----------------------------------------------------
+const PANELS = ["panelEmpty", "panelAgent", "panelOauth", "panelAccount"];
+
+function showPanel(id) {
+  for (const p of PANELS) {
+    const el = $(p);
+    if (el) el.hidden = p !== id;
+  }
+}
+
+function setNavActive(key) {
+  document.querySelectorAll(".nav-item").forEach((el) => el.classList.remove("active"));
+  if (key === "agent") $("navAgent").classList.add("active");
+  else if (key === "oauth") $("navOauth").classList.add("active");
+  else if (key === "add") $("navAdd").classList.add("active");
+  else if (key && key.email) {
+    const node = document.querySelector(`.nav-item[data-email="${cssEscape(key.email)}"]`);
+    if (node) node.classList.add("active");
+  }
+}
+
+// Minimal attribute-selector escape for emails (no CSS.escape in older engines).
+function cssEscape(s) {
+  return String(s).replace(/["\\]/g, "\\$&");
+}
+
+// ---- account list (sidebar) ----------------------------------------------
+const TYPE_ICON = { qq: "📩", outlook_imap: "📨" };
+
+function renderAccountList() {
+  const list = $("accountList");
+  if (!list) return;
+  list.innerHTML = "";
+
+  for (const acc of accounts) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-item account-item";
+    btn.setAttribute("data-email", acc.email);
+    btn.setAttribute("data-type", acc.type);
+
+    const ic = document.createElement("span");
+    ic.className = "nav-ic";
+    ic.textContent = TYPE_ICON[acc.type] || "✉️";
+
+    const label = document.createElement("span");
+    label.className = "nav-label";
+    label.textContent = acc.email;
+    label.title = acc.email;
+
+    const dot = document.createElement("span");
+    dot.className = "nav-dot" + (acc.configured ? " ok" : "");
+
+    btn.append(ic, label, dot);
+    btn.addEventListener("click", () => selectAccount(acc));
+    list.appendChild(btn);
+  }
+
+  const empty = $("accountsEmpty");
+  if (empty) empty.hidden = accounts.length > 0;
+
+  // Keep the active highlight in sync after a re-render.
+  if (selected && selected.email) setNavActive(selected);
+}
+
+// ---- selection handlers --------------------------------------------------
+function selectAgent() {
+  selected = "agent";
+  setNavActive("agent");
+  showPanel("panelAgent");
+}
+
+function selectOauth() {
+  selected = "oauth";
+  setNavActive("oauth");
+  showPanel("panelOauth");
+}
+
+function selectAdd() {
+  selected = "add";
+  setNavActive("add");
+  $("acctTitle").querySelector("span:last-child").textContent = T("add_account_title");
+  $("acctType").disabled = false;
+  $("acctType").value = "qq";
+  $("acctEmail").value = "";
+  $("acctEmail").disabled = false;
+  $("acctSecret").value = "";
+  $("acctRemove").hidden = true;
+  setMsg("acctMsg", "");
+  renderAccountFormByType("qq");
+  showPanel("panelAccount");
+}
+
+function selectAccount(acc) {
+  selected = { type: acc.type, email: acc.email };
+  setNavActive(selected);
+  $("acctTitle").querySelector("span:last-child").textContent = acc.email;
+  $("acctType").value = acc.type;
+  $("acctType").disabled = true; // type is fixed once created
+  $("acctEmail").value = acc.email;
+  $("acctEmail").disabled = true; // email is the key; change = add new
+  $("acctSecret").value = "";
+  $("acctRemove").hidden = false;
+  setMsg("acctMsg", "");
+  renderAccountFormByType(acc.type);
+  showPanel("panelAccount");
+  // Pre-fill the stored secret (masked as dots, revealable via the eye).
+  revealAccountSecret(acc);
+}
+
+function setText(id, text) {
+  const el = $(id);
+  if (el && text != null) el.textContent = text;
+}
+
+// Toggle help/label blocks for QQ vs Outlook IMAP.
+function renderAccountFormByType(type) {
+  const isQq = type === "qq";
+  setText("acctSecretLabel", T(isQq ? "qq_authcode" : "app_password"));
+  setMsg("acctNoEcho", T(isQq ? "qq_no_echo" : "imap_no_echo"));
+  $("qqHowto").hidden = !isQq;
+  $("outlookImapHelp").hidden = isQq;
+}
+
+async function revealAccountSecret(acc) {
+  try {
+    const kind = acc.type === "qq" ? "qq" : "outlook_imap";
+    const r = await bg({ type: "BG_REVEAL_SECRET", kind, email: acc.email });
+    if (r && r.ok && r.value) $("acctSecret").value = r.value;
+  } catch {
+    // agent down or no secret — leave empty
+  }
+}
+
+// ---- agent settings (unchanged logic) ------------------------------------
+function setAgentStatus(ok, detail) {
+  setMsg("agentStatus", T(ok ? "agent_ok_detail" : "agent_down_detail", { detail: detail || "" }));
 }
 
 function originPatternFromBaseUrl(baseUrl) {
@@ -82,23 +222,6 @@ function originPatternFromBaseUrl(baseUrl) {
   } catch {
     return null;
   }
-}
-
-async function loadLastConfig() {
-  const raw = await chrome.storage.local.get([
-    "lastQqEmail",
-    "lastOutlookMode",
-    "lastOutlookClientId",
-    "lastOutlookImapEmail"
-  ]);
-
-  if (raw.lastQqEmail && !$("qqEmail").value) $("qqEmail").value = raw.lastQqEmail;
-  if (raw.lastOutlookMode) {
-    $("outlookMode").value = raw.lastOutlookMode;
-    renderOutlookMode($("outlookMode").value);
-  }
-  if (raw.lastOutlookClientId && !$("outlookClientId").value) $("outlookClientId").value = raw.lastOutlookClientId;
-  if (raw.lastOutlookImapEmail && !$("outlookImapEmail").value) $("outlookImapEmail").value = raw.lastOutlookImapEmail;
 }
 
 async function loadExtSettings() {
@@ -116,10 +239,9 @@ async function saveExtSettings() {
 
   const origin = originPatternFromBaseUrl(agentBaseUrl);
   let permGranted = true;
-  // Localhost origin is already in host_permissions.
   if (origin && origin !== "http://127.0.0.1:17373/*") {
     try {
-      // IMPORTANT: permissions.request must be called in a user gesture. Keep it before other awaits.
+      // IMPORTANT: permissions.request must be in a user gesture; keep before awaits.
       permGranted = await chrome.permissions.request({ origins: [origin] });
     } catch {
       permGranted = false;
@@ -139,22 +261,69 @@ async function saveExtSettings() {
     setMsg("saveExtMsg", T("saved"));
   }
   setTimeout(() => setMsg("saveExtMsg", ""), 2500);
-  await refreshAgentStatus();
+  await refreshStatus();
 }
 
-function renderOutlookMode(mode) {
-  const oauthBox = $("outlookOauthBox");
-  const imapBox = $("outlookImapBox");
-  if (mode === "imap") {
-    oauthBox.style.display = "none";
-    imapBox.style.display = "block";
-  } else {
-    oauthBox.style.display = "block";
-    imapBox.style.display = "none";
+// ---- multi-tenant auth gating --------------------------------------------
+let authMode = "login"; // "login" | "register"
+
+// Toggle the login panel vs the settings UI based on the agent status payload.
+// Returns true if the settings UI should be shown (single-tenant, or logged in).
+function applyAuthState(status) {
+  const multiTenant = !!(status && status.multiTenant);
+  const authed = !multiTenant || (status && status.authenticated);
+
+  const layout = document.querySelector(".settings-layout");
+  $("loginPanel").hidden = authed;
+  $("authBar").hidden = !(multiTenant && authed);
+  if (layout) layout.hidden = !authed;
+  return authed;
+}
+
+async function loadMe() {
+  try {
+    const r = await bg({ type: "BG_AUTH_ME" });
+    if (r && r.ok && r.user) setMsg("authWho", T("logged_in_as", { name: r.user.username }));
+  } catch {
+    // ignore
   }
 }
 
-async function refreshAgentStatus() {
+function setAuthMode(mode) {
+  authMode = mode;
+  const isLogin = mode === "login";
+  $("loginTitle").textContent = T(isLogin ? "login" : "register");
+  $("authSubmit").textContent = T(isLogin ? "login" : "register");
+  $("authToggle").textContent = T(isLogin ? "switch_to_register" : "switch_to_login");
+  setMsg("authMsg", "");
+}
+
+async function submitAuth() {
+  const username = $("authUser").value.trim();
+  const password = $("authPass").value;
+  if (!username || !password) return;
+  setMsg("authMsg", T("saving"));
+  try {
+    const type = authMode === "register" ? "BG_AUTH_REGISTER" : "BG_AUTH_LOGIN";
+    const r = await bg({ type, username, password });
+    if (r && r.ok) {
+      $("authPass").value = "";
+      await refreshStatus();
+    } else {
+      setMsg("authMsg", T("auth_failed", { err: (r && r.error) || "" }));
+    }
+  } catch (e) {
+    setMsg("authMsg", T("auth_failed", { err: String(e && e.message ? e.message : e) }));
+  }
+}
+
+async function doLogout() {
+  await bg({ type: "BG_AUTH_LOGOUT" });
+  await refreshStatus();
+}
+
+// ---- status → account list -----------------------------------------------
+async function refreshStatus() {
   try {
     const r = await bg({ type: "BG_AGENT_STATUS" });
     if (!r || !r.ok) {
@@ -162,112 +331,97 @@ async function refreshAgentStatus() {
       if (err === "unauthorized") setAgentStatus(false, T("need_api_key"));
       else if (err) setAgentStatus(false, err);
       else setAgentStatus(false, "");
+      accounts = [];
+      renderAccountList();
       return;
     }
 
+    // Multi-tenant gating: show login panel when not authenticated.
+    const authed = applyAuthState(r.status);
+    if (!authed) return; // login panel is up; nothing else to render
+    if (r.status.multiTenant) loadMe();
+
     setAgentStatus(true, `${r.status.agent.host}:${r.status.agent.port}`);
-
     const cfg = r.status.config || {};
-    const cache = {};
-    if (cfg.qq) {
-      if (cfg.qq.email) {
-        $("qqEmail").value = cfg.qq.email;
-        cache.lastQqEmail = cfg.qq.email;
-      }
-      setMsg("qqState", T(cfg.qq.configured ? "configured" : "not_configured"));
-    }
 
-    if (cfg.outlook) {
-      $("outlookMode").value = cfg.outlook.mode || "oauth";
-      renderOutlookMode($("outlookMode").value);
-      cache.lastOutlookMode = $("outlookMode").value;
-      if (cfg.outlook.clientId) $("outlookClientId").value = cfg.outlook.clientId;
-      if (cfg.outlook.clientId) cache.lastOutlookClientId = cfg.outlook.clientId;
-      if (cfg.outlook.imapEmail) $("outlookImapEmail").value = cfg.outlook.imapEmail;
-      if (cfg.outlook.imapEmail) cache.lastOutlookImapEmail = cfg.outlook.imapEmail;
+    // Build the flat account list from qq + outlook IMAP accounts.
+    const next = [];
+    const qq = (cfg.qq && cfg.qq.accounts) || [];
+    for (const a of qq) next.push({ type: "qq", email: a.email, configured: !!a.configured });
+    const imap = (cfg.outlook && cfg.outlook.imapAccounts) || [];
+    for (const a of imap) next.push({ type: "outlook_imap", email: a.email, configured: !!a.configured });
+    accounts = next;
+    renderAccountList();
 
-      if ($("outlookMode").value === "oauth") {
-        setMsg("outlookState", T(cfg.outlook.oauthConnected ? "oauth_connected" : "oauth_not_connected"));
-      } else {
-        setMsg("outlookState", T(cfg.outlook.imapConfigured ? "imap_configured" : "imap_not_configured"));
-      }
-    }
-
-    await chrome.storage.local.set(cache);
+    // Outlook OAuth state (single account).
+    const ol = cfg.outlook || {};
+    if (ol.clientId) $("outlookClientId").value = ol.clientId;
+    setMsg("outlookState", T(ol.oauthConnected ? "oauth_connected" : "oauth_not_connected"));
+    const dot = $("navOauthDot");
+    if (dot) dot.classList.toggle("ok", !!ol.oauthConnected);
   } catch (e) {
     setAgentStatus(false, String(e && e.message ? e.message : e));
+    accounts = [];
+    renderAccountList();
   }
 }
 
-// Pre-fill stored credentials (masked as dots) so the user can see/copy them
-// via the eye toggle. Values come from the agent's reveal endpoint.
-async function revealStoredSecrets() {
-  for (const [kind, inputId] of [["qq", "qqAuthCode"], ["outlook_imap", "outlookImapPass"]]) {
-    try {
-      const r = await bg({ type: "BG_REVEAL_SECRET", kind });
-      if (r && r.ok && r.value) $(inputId).value = r.value;
-    } catch {
-      // ignore — agent down or secret not set
+// ---- save / remove account -----------------------------------------------
+async function saveAccount() {
+  const type = $("acctType").value;
+  const email = $("acctEmail").value.trim();
+  const secret = $("acctSecret").value.trim();
+  if (!email || !secret) {
+    setMsg("acctMsg", T("failed"));
+    return;
+  }
+  setMsg("acctMsg", T("saving"));
+  try {
+    let r;
+    if (type === "qq") {
+      r = await bg({ type: "BG_QQ_CONFIG", email, authCode: secret });
+    } else {
+      r = await bg({ type: "BG_OUTLOOK_CONFIG", payload: { mode: "imap", email, appPassword: secret } });
     }
+    if (r && r.ok) {
+      setMsg("acctMsg", T("saved"));
+      await refreshStatus();
+      // Re-select the (now saved) account so the panel shows edit mode.
+      selectAccount({ type, email, configured: true });
+    } else {
+      setMsg("acctMsg", T("failed_with", { err: r && r.error ? r.error : "" }));
+    }
+  } catch (e) {
+    setMsg("acctMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
+  }
+  setTimeout(() => setMsg("acctMsg", ""), 2500);
+}
+
+async function removeAccount() {
+  if (!selected || !selected.email) return;
+  const { type, email } = selected;
+  setMsg("acctMsg", T("removing"));
+  try {
+    const r =
+      type === "qq"
+        ? await bg({ type: "BG_QQ_REMOVE", email })
+        : await bg({ type: "BG_OUTLOOK_IMAP_REMOVE", email });
+    if (r && r.ok) {
+      setMsg("acctMsg", T("cleared"));
+      await refreshStatus();
+      selected = null;
+      showPanel("panelEmpty");
+      setNavActive(null);
+    } else {
+      setMsg("acctMsg", T("failed"));
+    }
+  } catch (e) {
+    setMsg("acctMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
   }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-  LANG = await getUiLang();
-  applyLang(LANG);
-
-  await loadExtSettings();
-  await loadLastConfig();
-  renderOutlookMode($("outlookMode").value);
-  await refreshAgentStatus();
-  await revealStoredSecrets();
-
-  $("uiLang").addEventListener("change", async () => {
-    const lang = $("uiLang").value;
-    await setUiLang(lang);
-    applyLang(lang);
-    // Reason: re-render dynamic status strings in the new language.
-    await refreshAgentStatus();
-  });
-
-  $("refreshStatus").addEventListener("click", refreshAgentStatus);
-  $("saveExt").addEventListener("click", saveExtSettings);
-  initPwdToggles();
-
-  $("qqSave").addEventListener("click", async () => {
-    setMsg("qqMsg", T("saving"));
-    try {
-      const email = $("qqEmail").value.trim();
-      const authCode = $("qqAuthCode").value.trim();
-      const r = await bg({ type: "BG_QQ_CONFIG", email, authCode });
-      setMsg("qqMsg", r && r.ok ? T("saved") : T("failed_with", { err: r && r.error ? r.error : "" }));
-      if (r && r.ok) {
-        setMsg("qqState", T("configured"));
-        await chrome.storage.local.set({ lastQqEmail: email });
-      }
-      await refreshAgentStatus();
-    } catch (e) {
-      setMsg("qqMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
-    }
-    setTimeout(() => setMsg("qqMsg", ""), 2500);
-  });
-
-  $("qqClear").addEventListener("click", async () => {
-    setMsg("qqMsg", T("clearing"));
-    try {
-      const r = await bg({ type: "BG_QQ_CLEAR" });
-      setMsg("qqMsg", r && r.ok ? T("cleared") : T("failed"));
-      await refreshAgentStatus();
-    } catch (e) {
-      setMsg("qqMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
-    }
-    setTimeout(() => setMsg("qqMsg", ""), 2500);
-  });
-
-  $("outlookMode").addEventListener("change", () => {
-    renderOutlookMode($("outlookMode").value);
-  });
-
+// ---- Outlook OAuth (unchanged logic, now in its own panel) ----------------
+function wireOauth() {
   $("outlookOauthSave").addEventListener("click", async () => {
     setMsg("outlookOauthMsg", T("saving"));
     try {
@@ -276,9 +430,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       setMsg("outlookOauthMsg", r && r.ok ? T("saved") : T("failed_with", { err: r && r.error ? r.error : "" }));
       if (r && r.ok) {
         setMsg("outlookState", T("oauth_not_connected"));
-        await chrome.storage.local.set({ lastOutlookMode: "oauth", lastOutlookClientId: clientId });
+        await chrome.storage.local.set({ lastOutlookClientId: clientId });
       }
-      await refreshAgentStatus();
+      await refreshStatus();
     } catch (e) {
       setMsg("outlookOauthMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
     }
@@ -295,10 +449,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       const dc = r.deviceCode;
       const link = dc.verification_uri_complete || dc.verification_uri;
-      setMsg(
-        "deviceCodeMsg",
-        T("device_code_msg", { uri: dc.verification_uri, code: dc.user_code, sec: dc.expires_in })
-      );
+      setMsg("deviceCodeMsg", T("device_code_msg", { uri: dc.verification_uri, code: dc.user_code, sec: dc.expires_in }));
       if (link) chrome.tabs.create({ url: link });
     } catch (e) {
       setMsg("deviceCodeMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
@@ -317,51 +468,65 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (result.status === "success") setMsg("outlookOauthMsg", T("connected"));
       else if (result.status === "expired") setMsg("outlookOauthMsg", T("expired"));
       else setMsg("outlookOauthMsg", T("pending", { err: result.error || "authorization_pending" }));
-      await refreshAgentStatus();
+      await refreshStatus();
     } catch (e) {
       setMsg("outlookOauthMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
     }
     setTimeout(() => setMsg("outlookOauthMsg", ""), 3500);
   });
 
-  $("outlookImapSave").addEventListener("click", async () => {
-    setMsg("outlookImapMsg", T("saving"));
-    try {
-      const email = $("outlookImapEmail").value.trim();
-      const appPassword = $("outlookImapPass").value.trim();
-      const r = await bg({
-        type: "BG_OUTLOOK_CONFIG",
-        payload: { mode: "imap", email, appPassword }
-      });
-      setMsg("outlookImapMsg", r && r.ok ? T("saved") : T("failed_with", { err: r && r.error ? r.error : "" }));
-      if (r && r.ok) {
-        setMsg("outlookState", T("imap_configured"));
-        await chrome.storage.local.set({ lastOutlookMode: "imap", lastOutlookImapEmail: email });
-      }
-      await refreshAgentStatus();
-    } catch (e) {
-      setMsg("outlookImapMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
-    }
-    setTimeout(() => setMsg("outlookImapMsg", ""), 2500);
-  });
-
   $("outlookClear").addEventListener("click", async () => {
-    setMsg("outlookImapMsg", T("clearing"));
     setMsg("outlookOauthMsg", T("clearing"));
     try {
       const r = await bg({ type: "BG_OUTLOOK_CLEAR" });
-      const msg = r && r.ok ? T("cleared") : T("failed_with", { err: r && r.error ? r.error : "" });
-      setMsg("outlookImapMsg", msg);
-      setMsg("outlookOauthMsg", msg);
-      await refreshAgentStatus();
+      setMsg("outlookOauthMsg", r && r.ok ? T("cleared") : T("failed"));
+      await refreshStatus();
     } catch (e) {
-      const msg = T("failed_with", { err: String(e && e.message ? e.message : e) });
-      setMsg("outlookImapMsg", msg);
-      setMsg("outlookOauthMsg", msg);
+      setMsg("outlookOauthMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
     }
-    setTimeout(() => {
-      setMsg("outlookImapMsg", "");
-      setMsg("outlookOauthMsg", "");
-    }, 2500);
+    setTimeout(() => setMsg("outlookOauthMsg", ""), 2500);
   });
+}
+
+// ---- boot ----------------------------------------------------------------
+document.addEventListener("DOMContentLoaded", async () => {
+  LANG = await getUiLang();
+  applyLang(LANG);
+
+  await loadExtSettings();
+  await refreshStatus();
+
+  $("uiLang").addEventListener("change", async () => {
+    const lang = $("uiLang").value;
+    await setUiLang(lang);
+    applyLang(lang);
+    await refreshStatus();
+  });
+
+  $("navAgent").addEventListener("click", selectAgent);
+  $("navOauth").addEventListener("click", selectOauth);
+  $("navAdd").addEventListener("click", selectAdd);
+  $("refreshStatus").addEventListener("click", refreshStatus);
+  $("saveExt").addEventListener("click", saveExtSettings);
+  $("acctType").addEventListener("change", () => renderAccountFormByType($("acctType").value));
+  $("acctSave").addEventListener("click", saveAccount);
+  $("acctRemove").addEventListener("click", removeAccount);
+
+  // multi-tenant auth controls
+  setAuthMode("login");
+  $("authSubmit").addEventListener("click", submitAuth);
+  $("authPass").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitAuth();
+  });
+  $("authToggle").addEventListener("click", (e) => {
+    e.preventDefault();
+    setAuthMode(authMode === "login" ? "register" : "login");
+  });
+  $("logoutBtn").addEventListener("click", doLogout);
+
+  wireOauth();
+  initPwdToggles();
+
+  // Default view: Agent settings.
+  selectAgent();
 });
