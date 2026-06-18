@@ -7,6 +7,8 @@ export type User = {
   username: string;
   passwordHash: string;
   createdAt: number;
+  lastSeen: number | null;
+  disabled: boolean;
 };
 
 type UserRow = {
@@ -14,6 +16,8 @@ type UserRow = {
   username: string;
   password_hash: string;
   created_at: number;
+  last_seen: number | null;
+  disabled: number | null;
 };
 
 // --- password hashing (scrypt, constant-time verify) ----------------------
@@ -40,7 +44,25 @@ function normUsername(username: string): string {
 }
 
 function rowToUser(r: UserRow): User {
-  return { id: r.id, username: r.username, passwordHash: r.password_hash, createdAt: r.created_at };
+  return {
+    id: r.id,
+    username: r.username,
+    passwordHash: r.password_hash,
+    createdAt: r.created_at,
+    lastSeen: r.last_seen ?? null,
+    disabled: !!r.disabled,
+  };
+}
+
+// All users (admin listing). Excludes password hash from the shape consumers
+// see via the omit below where needed; here it's the full row for internal use.
+export async function listUsers(): Promise<User[]> {
+  const rows = db.prepare("SELECT * FROM users ORDER BY created_at").all() as UserRow[];
+  return rows.map(rowToUser);
+}
+
+export function setUserDisabled(userId: string, disabled: boolean): void {
+  db.prepare("UPDATE users SET disabled = ? WHERE id = ?").run(disabled ? 1 : 0, userId);
 }
 
 export async function findByUsername(username: string): Promise<User | null> {
@@ -69,6 +91,8 @@ export async function createUser(username: string, password: string, inviteCode?
     username: normUsername(username),
     passwordHash: hashPassword(password),
     createdAt: Date.now(),
+    lastSeen: null,
+    disabled: false,
   };
   try {
     db.prepare(

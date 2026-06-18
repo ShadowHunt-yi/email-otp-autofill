@@ -47,6 +47,13 @@ export function destroySession(token: string): void {
   sessions.delete(token);
 }
 
+// Invalidate every active session for a user (used when an admin disables them).
+export function destroyUserSessions(userId: string): void {
+  for (const [token, s] of sessions) {
+    if (s.userId === userId) sessions.delete(token);
+  }
+}
+
 function bearerToken(req: Request): string | null {
   const h = req.headers.authorization || req.headers.Authorization;
   const value = Array.isArray(h) ? h[0] : h;

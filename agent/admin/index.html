@@ -120,6 +120,14 @@
         </div>
 
         <div class="card">
+          <h2>👥 用户</h2>
+          <table id="userTable">
+            <thead><tr><th>用户名</th><th>绑定邮箱</th><th>注册时间</th><th>最近活跃</th><th>状态</th><th></th></tr></thead>
+            <tbody id="userBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
           <h2>🎟️ 邀请码</h2>
           <div class="row">
             <input id="genCount" type="number" min="1" max="100" value="5" style="width:90px;" />
@@ -167,10 +175,39 @@
           <div class="stat"><div class="n">${stats.users.total}</div><div class="l">用户总数</div></div>
           <div class="stat"><div class="n">${stats.users.todayNew}</div><div class="l">今日新增</div></div>
           <div class="stat"><div class="n">${stats.users.active7d}</div><div class="l">近 7 日活跃</div></div>
-          <div class="stat"><div class="n">${stats.invites.used}/${stats.invites.total}</div><div class="l">邀请码 已用/总</div></div>
-          <div class="stat"><div class="n">${stats.invites.unused}</div><div class="l">未使用邀请码</div></div>`;
+          <div class="stat"><div class="n">${stats.users.disabled || 0}</div><div class="l">已禁用</div></div>
+          <div class="stat"><div class="n">${stats.invites.used}/${stats.invites.total}</div><div class="l">邀请码 已用/总</div></div>`;
         $("reqInvite").checked = !!stats.requireInvite;
+        await loadUsers();
         await loadInvites();
+      }
+
+      const MAIL_ICON = { qq: "📩", outlook_imap: "📨", outlook_oauth: "🔑" };
+      function mailboxBadges(list) {
+        if (!list || !list.length) return '<span style="color:var(--faint)">—</span>';
+        return list.map((m) => {
+          const label = m.email || (m.type === "outlook_oauth" ? "Outlook OAuth" : m.type);
+          return `<span class="pill free" style="margin:1px 3px 1px 0;">${MAIL_ICON[m.type] || "✉️"} ${label}</span>`;
+        }).join("");
+      }
+
+      async function loadUsers() {
+        const r = await api("/v1/admin/users");
+        $("userBody").innerHTML = (r.items || []).map((u) => {
+          const status = u.disabled
+            ? '<span class="pill" style="color:var(--danger);background:rgba(255,122,122,0.1);border:1px solid rgba(255,122,122,0.3);">已禁用</span>'
+            : '<span class="pill free">正常</span>';
+          const btn = u.disabled
+            ? `<button data-enable="${u.id}" data-name="${u.username}" style="padding:4px 9px;font-size:12px;">启用</button>`
+            : `<button class="danger" data-disable="${u.id}" data-name="${u.username}" style="padding:4px 9px;font-size:12px;">禁用</button>`;
+          return `<tr>
+            <td>${u.username}</td>
+            <td>${mailboxBadges(u.mailboxes)}</td>
+            <td>${fmtTime(u.createdAt)}</td>
+            <td>${fmtTime(u.lastSeen)}</td>
+            <td>${status}</td>
+            <td>${btn}</td></tr>`;
+        }).join("");
       }
 
       async function loadInvites() {
@@ -244,6 +281,20 @@
         const rv = e.target.getAttribute("data-revoke");
         if (rv && confirm(`撤销邀请码 ${rv}？`)) {
           await api("/v1/admin/invites/revoke", { method: "POST", body: JSON.stringify({ code: rv }) });
+          await loadAll();
+        }
+      });
+
+      // delegate disable / enable on the users table
+      $("userBody").addEventListener("click", async (e) => {
+        const dis = e.target.getAttribute("data-disable");
+        const en = e.target.getAttribute("data-enable");
+        const name = e.target.getAttribute("data-name") || "";
+        if (dis && confirm(`禁用用户「${name}」？该用户将无法登录、邮箱轮询停止（数据保留，可再启用）。`)) {
+          await api("/v1/admin/users/disable", { method: "POST", body: JSON.stringify({ userId: dis, disabled: true }) });
+          await loadAll();
+        } else if (en && confirm(`启用用户「${name}」？`)) {
+          await api("/v1/admin/users/disable", { method: "POST", body: JSON.stringify({ userId: en, disabled: false }) });
           await loadAll();
         }
       });

@@ -11,6 +11,7 @@ import {
   LOCAL_USER_ID,
   createSession,
   destroySession,
+  destroyUserSessions,
   requireAdmin,
   requireAuth,
   resolveSession,
@@ -19,7 +20,16 @@ import { OtpStore } from "./otp/store.js";
 import { ProviderManager, ProviderRegistry } from "./providers/manager.js";
 import { db, migrateJsonToDb } from "./storage/db.js";
 import { migratePlaintextSecrets, secretGet, secretSet } from "./storage/secrets.js";
-import { createUser, findByUsername, getUser, listUserIds, verifyPassword } from "./storage/users.js";
+import {
+  createUser,
+  findByUsername,
+  getUser,
+  listUserIds,
+  listUsers,
+  setUserDisabled,
+  verifyPassword,
+} from "./storage/users.js";
+import { loadConfig } from "./storage/config.js";
 import {
   createInvites,
   consumeInvite,
@@ -133,6 +143,9 @@ export async function startServer() {
       const user = await findByUsername(body.data.username);
       if (!user || !verifyPassword(body.data.password, user.passwordHash)) {
         return res.status(401).json({ ok: false, error: "invalid_credentials" });
+      }
+      if (user.disabled) {
+        return res.status(401).json({ ok: false, error: "account_disabled" });
       }
       const token = createSession(user.id);
       res.json({ ok: true, token, user: { id: user.id, username: user.username } });
@@ -355,9 +368,10 @@ export async function startServer() {
     const totalUsers = (db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number }).n;
     const todayNew = (db.prepare("SELECT COUNT(*) AS n FROM users WHERE created_at >= ?").get(dayStart) as { n: number }).n;
     const activ7 = (db.prepare("SELECT COUNT(*) AS n FROM users WHERE last_seen >= ?").get(week) as { n: number }).n;
+    const disabled = (db.prepare("SELECT COUNT(*) AS n FROM users WHERE disabled = 1").get() as { n: number }).n;
     res.json({
       ok: true,
-      users: { total: totalUsers, todayNew, active7d: activ7 },
+      users: { total: totalUsers, todayNew, active7d: activ7, disabled },
       invites: inviteStats(),
       requireInvite: isInviteRequired(),
     });
@@ -397,6 +411,50 @@ export async function startServer() {
     if (!body.success) return res.status(400).json({ ok: false, error: "bad_request" });
     setInviteRequired(body.data.requireInvite);
     res.json({ ok: true, requireInvite: isInviteRequired() });
+  });
+
+  // Summarize the mailboxes a user has bound (from their per-user config).
+  async function userMailboxes(userId: string) {
+    const cfg = await loadConfig(userId);
+    const out: Array<{ type: string; email?: string }> = [];
+    for (const a of cfg.qq.accounts) out.push({ type: "qq", email: a.email });
+    for (const a of cfg.outlook.imapAccounts) out.push({ type: "outlook_imap", email: a.email });
+    if (cfg.outlook.mode === "oauth" && cfg.outlook.clientId) out.push({ type: "outlook_oauth" });
+    return out;
+  }
+
+  app.get("/v1/admin/users", requireAdmin, async (_req, res) => {
+    const users = await listUsers();
+    const items = await Promise.all(
+      users.map(async (u) => ({
+        id: u.id,
+        username: u.username,
+        createdAt: u.createdAt,
+        lastSeen: u.lastSeen,
+        disabled: u.disabled,
+        mailboxes: await userMailboxes(u.id),
+      }))
+    );
+    res.json({ ok: true, items });
+  });
+
+  app.post("/v1/admin/users/disable", requireAdmin, async (req, res) => {
+    const Body = z.object({ userId: z.string().min(1), disabled: z.boolean() });
+    const body = Body.safeParse(req.body);
+    if (!body.success) return res.status(400).json({ ok: false, error: "bad_request" });
+    const target = await getUser(body.data.userId);
+    if (!target) return res.status(404).json({ ok: false, error: "user_not_found" });
+
+    setUserDisabled(body.data.userId, body.data.disabled);
+    if (body.data.disabled) {
+      // Kick the user offline and stop their mailbox polling (data is kept).
+      destroyUserSessions(body.data.userId);
+      await registry.removeUser(body.data.userId);
+    } else {
+      // Re-enable: rebuild their providers/watchers.
+      await registry.getOrCreate(body.data.userId);
+    }
+    res.json({ ok: true });
   });
 
   // ---- admin static page -------------------------------------------------

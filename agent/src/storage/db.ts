@@ -59,6 +59,7 @@ function addColumnIfMissing(table: string, columnDef: string): void {
 }
 addColumnIfMissing("users", "invite_code TEXT"); // invite used at registration
 addColumnIfMissing("users", "last_seen INTEGER"); // activity tracking
+addColumnIfMissing("users", "disabled INTEGER DEFAULT 0"); // soft-delete / deactivation
 
 // One-time import of legacy JSON files into the DB. Runs only when the relevant
 // table is still empty, so it's safe to call on every startup. Preserves the
