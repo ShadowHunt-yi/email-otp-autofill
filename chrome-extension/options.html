@@ -71,11 +71,6 @@
             <span class="nav-ic">🛰️</span>
             <span class="nav-label" data-i18n="agent_settings">Agent Settings</span>
           </button>
-          <button id="navOauth" class="nav-item" type="button">
-            <span class="nav-ic">🔑</span>
-            <span class="nav-label">Outlook OAuth</span>
-            <span id="navOauthDot" class="nav-dot"></span>
-          </button>
 
           <div class="sidebar-section-title" data-i18n="accounts">Accounts</div>
           <div id="accountList" class="account-list">
@@ -117,73 +112,50 @@
             </div>
           </div>
 
-          <!-- Outlook OAuth (single account) -->
-          <div id="panelOauth" class="panel" hidden>
-            <div class="card-title"><span class="ic">🔑</span><span data-i18n="outlook_title">Outlook</span> · OAuth</div>
-            <div id="outlookState" class="card-sub" data-i18n="oauth_not_connected">OAuth not connected</div>
-
-            <label for="outlookClientId" data-i18n="client_id">Microsoft App Client ID</label>
-            <input id="outlookClientId" data-i18n-ph="client_id_ph" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-            <div class="hint" data-i18n="client_id_hint">
-              You need a free App Registration that supports personal Microsoft accounts.
-              The agent uses Device Code flow, so no redirect URL needed.
-            </div>
-            <div class="hint help-block" id="clientIdHowto">
-              获取途径：打开
-              <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener">Azure 门户 · 应用注册</a>
-              → New registration → Supported account types 选「Personal Microsoft accounts only」→
-              无需填 Redirect URI → 注册后复制「Application (client) ID」填入此处。
-              还需在该应用的 Authentication 页把「Allow public client flows」设为 Yes（设备码流程要求）。
-            </div>
-            <div class="row" style="margin-top:14px;">
-              <button id="outlookOauthSave" class="primary" data-i18n="save_client_id">Save Client ID</button>
-              <button id="outlookAuthStart" data-i18n="start_signin">Start Sign-in</button>
-            </div>
-            <div class="hint" id="deviceCodeMsg"></div>
-            <div class="row" style="margin-top:8px;">
-              <button id="outlookAuthPoll" data-i18n="poll">Poll</button>
-              <span id="outlookOauthMsg" class="status-msg"></span>
-            </div>
-            <div class="hr"></div>
-            <div class="row">
-              <button id="outlookClear" class="danger" data-i18n="clear">Clear</button>
-            </div>
-          </div>
-
-          <!-- Add / edit a mailbox account (QQ or Outlook IMAP) -->
+          <!-- Add / edit a mailbox account (QQ or Outlook OAuth) -->
           <div id="panelAccount" class="panel" hidden>
             <div id="acctTitle" class="card-title"><span class="ic">📩</span><span data-i18n="add_account_title">Add a new account</span></div>
 
             <label for="acctType" data-i18n="account_type">Account type</label>
             <select id="acctType">
               <option value="qq" data-i18n="type_qq">QQ Mail (IMAP)</option>
-              <option value="outlook_imap" data-i18n="type_outlook_imap">Outlook (IMAP)</option>
+              <option value="outlook_oauth" data-i18n="type_outlook_oauth">Outlook (OAuth)</option>
             </select>
 
-            <label for="acctEmail" data-i18n="account_email">Email</label>
-            <input id="acctEmail" placeholder="you@example.com" />
+            <!-- QQ fields (shown when type=qq) -->
+            <div id="qqFields">
+              <label for="acctEmail" data-i18n="account_email">Email</label>
+              <input id="acctEmail" placeholder="you@example.com" />
 
-            <label for="acctSecret"><span id="acctSecretLabel" data-i18n="qq_authcode">QQ IMAP 授权码</span></label>
-            <div class="pwd-wrap">
-              <input id="acctSecret" type="password" placeholder="" />
-              <button type="button" class="pwd-toggle" data-toggle="acctSecret" aria-label="Show password"></button>
-            </div>
-            <div id="acctNoEcho" class="hint" data-i18n="qq_no_echo">出于安全考虑，保存后不会回显授权码。</div>
+              <label for="acctSecret"><span id="acctSecretLabel" data-i18n="qq_authcode">QQ IMAP 授权码</span></label>
+              <div class="pwd-wrap">
+                <input id="acctSecret" type="password" placeholder="" />
+                <button type="button" class="pwd-toggle" data-toggle="acctSecret" aria-label="Show password"></button>
+              </div>
+              <div id="acctNoEcho" class="hint" data-i18n="qq_no_echo">出于安全考虑，保存后不会回显授权码。</div>
 
-            <!-- QQ help (shown when type=qq) -->
-            <div class="hint help-block" id="qqHowto" hidden>
-              获取途径：登录 <a href="https://mail.qq.com" target="_blank" rel="noopener">QQ 邮箱网页版</a> →
-              设置 → 账号 → 找到「POP3/IMAP/SMTP 服务」→ 开启「IMAP/SMTP 服务」→
-              按提示用手机发送短信验证 → 生成的授权码填入此处。
-            </div>
-            <!-- Outlook IMAP help (shown when type=outlook_imap) -->
-            <div class="hint help-block" id="outlookImapHelp" hidden>
-              获取途径：登录 <a href="https://account.microsoft.com/security" target="_blank" rel="noopener">Microsoft 账户 · 安全</a> →
-              先开启「两步验证」→ 进入「高级安全选项」→ 在「应用密码」下点「创建新的应用密码」→
-              复制生成的密码填入此处。
+              <!-- QQ help -->
+              <div class="hint help-block" id="qqHowto">
+                获取途径：登录 <a href="https://mail.qq.com" target="_blank" rel="noopener">QQ 邮箱网页版</a> →
+                设置 → 账号 → 找到「POP3/IMAP/SMTP 服务」→ 开启「IMAP/SMTP 服务」→
+                按提示用手机发送短信验证 → 生成的授权码填入此处。
+              </div>
             </div>
 
-            <div class="row" style="margin-top:14px;">
+            <!-- Outlook OAuth fields (shown when type=outlook_oauth) -->
+            <div id="outlookOauthFields" hidden>
+              <div id="outlookState" class="card-sub" data-i18n="oauth_not_connected">OAuth not connected</div>
+
+              <div class="row" style="margin-top:12px;">
+                <button id="outlookAuthStart" class="primary" data-i18n="start_signin">Start Sign-in</button>
+                <button id="outlookAuthPoll" data-i18n="poll">Poll</button>
+                <button id="outlookClear" class="danger" data-i18n="clear">Clear</button>
+              </div>
+              <div class="hint" id="deviceCodeMsg"></div>
+              <span id="outlookOauthMsg" class="status-msg"></span>
+            </div>
+
+            <div class="row" style="margin-top:12px;" id="acctActions">
               <button id="acctSave" class="primary" data-i18n="save_account">Save account</button>
               <button id="acctRemove" class="danger" data-i18n="remove_account" hidden>Remove</button>
               <span id="acctMsg" class="status-msg"></span>

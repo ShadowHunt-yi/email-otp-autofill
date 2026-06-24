@@ -277,15 +277,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       return;
     }
 
-    if (msg.type === "BG_OUTLOOK_IMAP_REMOVE") {
-      const json = await agentFetch("/v1/outlook/imap/remove", {
-        method: "POST",
-        body: JSON.stringify({ email: msg.email })
-      });
-      sendResponse({ ok: true, result: json });
-      return;
-    }
-
     if (msg.type === "BG_OUTLOOK_AUTH_START") {
       const json = await agentFetch("/v1/outlook/auth/start", { method: "POST", body: JSON.stringify({}) });
       sendResponse({ ok: true, deviceCode: json.deviceCode });

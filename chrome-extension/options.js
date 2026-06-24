@@ -18,10 +18,10 @@ function setMsg(id, text) {
 
 // ---- account model -------------------------------------------------------
 // A flat list of mailbox accounts built from /v1/status. Each entry:
-//   { type: "qq" | "outlook_imap", email, configured }
+//   { type: "qq" | "outlook_oauth", email?, configured }
 let accounts = [];
 // What the right panel is currently showing.
-let selected = null; // "agent" | "oauth" | "add" | {type,email} | null
+let selected = null; // "agent" | "add" | {type,email} | null
 
 // ---- password eye toggle (unchanged behavior) ----------------------------
 const EYE_ICON =
@@ -56,7 +56,7 @@ function refreshPwdToggleLabels() {
 
 // ---- i18n ----------------------------------------------------------------
 function applyRichI18n() {
-  const map = { qqHowto: "qq_howto", outlookImapHelp: "outlook_imap_howto", clientIdHowto: "client_id_howto" };
+  const map = { qqHowto: "qq_howto" };
   for (const id of Object.keys(map)) {
     const el = $(id);
     if (el) el.innerHTML = T(map[id]);
@@ -76,7 +76,7 @@ function applyLang(lang) {
 }
 
 // ---- panel switching -----------------------------------------------------
-const PANELS = ["panelEmpty", "panelAgent", "panelOauth", "panelAccount"];
+const PANELS = ["panelEmpty", "panelAgent", "panelAccount"];
 
 function showPanel(id) {
   for (const p of PANELS) {
@@ -88,7 +88,6 @@ function showPanel(id) {
 function setNavActive(key) {
   document.querySelectorAll(".nav-item").forEach((el) => el.classList.remove("active"));
   if (key === "agent") $("navAgent").classList.add("active");
-  else if (key === "oauth") $("navOauth").classList.add("active");
   else if (key === "add") $("navAdd").classList.add("active");
   else if (key && key.email) {
     const node = document.querySelector(`.nav-item[data-email="${cssEscape(key.email)}"]`);
@@ -102,7 +101,7 @@ function cssEscape(s) {
 }
 
 // ---- account list (sidebar) ----------------------------------------------
-const TYPE_ICON = { qq: "📩", outlook_imap: "📨" };
+const TYPE_ICON = { qq: "📩", outlook_oauth: "🔑" };
 
 function renderAccountList() {
   const list = $("accountList");
@@ -147,12 +146,6 @@ function selectAgent() {
   showPanel("panelAgent");
 }
 
-function selectOauth() {
-  selected = "oauth";
-  setNavActive("oauth");
-  showPanel("panelOauth");
-}
-
 function selectAdd() {
   selected = "add";
   setNavActive("add");
@@ -171,18 +164,27 @@ function selectAdd() {
 function selectAccount(acc) {
   selected = { type: acc.type, email: acc.email };
   setNavActive(selected);
-  $("acctTitle").querySelector("span:last-child").textContent = acc.email;
   $("acctType").value = acc.type;
   $("acctType").disabled = true; // type is fixed once created
-  $("acctEmail").value = acc.email;
-  $("acctEmail").disabled = true; // email is the key; change = add new
-  $("acctSecret").value = "";
-  $("acctRemove").hidden = false;
-  setMsg("acctMsg", "");
-  renderAccountFormByType(acc.type);
-  showPanel("panelAccount");
-  // Pre-fill the stored secret (masked as dots, revealable via the eye).
-  revealAccountSecret(acc);
+
+  if (acc.type === "outlook_oauth") {
+    // Outlook OAuth: show the OAuth panel with connect/clear actions
+    $("acctTitle").querySelector("span:last-child").textContent = "Outlook OAuth";
+    renderAccountFormByType("outlook_oauth");
+    showPanel("panelAccount");
+  } else {
+    // QQ account: show the edit form
+    $("acctTitle").querySelector("span:last-child").textContent = acc.email;
+    $("acctEmail").value = acc.email;
+    $("acctEmail").disabled = true; // email is the key; change = add new
+    $("acctSecret").value = "";
+    $("acctRemove").hidden = false;
+    setMsg("acctMsg", "");
+    renderAccountFormByType("qq");
+    showPanel("panelAccount");
+    // Pre-fill the stored secret (masked as dots, revealable via the eye).
+    revealAccountSecret(acc);
+  }
 }
 
 function setText(id, text) {
@@ -190,19 +192,35 @@ function setText(id, text) {
   if (el && text != null) el.textContent = text;
 }
 
-// Toggle help/label blocks for QQ vs Outlook IMAP.
-function renderAccountFormByType(type) {
+// Toggle form fields for QQ vs Outlook OAuth.
+async function renderAccountFormByType(type) {
   const isQq = type === "qq";
-  setText("acctSecretLabel", T(isQq ? "qq_authcode" : "app_password"));
-  setMsg("acctNoEcho", T(isQq ? "qq_no_echo" : "imap_no_echo"));
-  $("qqHowto").hidden = !isQq;
-  $("outlookImapHelp").hidden = isQq;
+  $("qqFields").hidden = !isQq;
+  $("outlookOauthFields").hidden = isQq;
+  $("acctActions").hidden = !isQq; // OAuth has its own buttons
+  if (!isQq) {
+    // Switch user to OAuth mode on the server, then refresh state.
+    try { await bg({ type: "BG_OUTLOOK_CONFIG", payload: { mode: "oauth" } }); } catch { /* ignore */ }
+    await refreshOutlookOAuthState();
+  }
+}
+
+async function refreshOutlookOAuthState() {
+  try {
+    const r = await bg({ type: "BG_AGENT_STATUS" });
+    if (r && r.ok && r.status && r.status.config) {
+      const ol = r.status.config.outlook || {};
+      setMsg("outlookState", T(ol.oauthConnected ? "oauth_connected" : (ol.clientIdSet ? "oauth_not_connected" : "oauth_no_client_id")));
+    }
+  } catch {
+    // ignore
+  }
 }
 
 async function revealAccountSecret(acc) {
+  if (acc.type !== "qq") return; // Only QQ has a revealable secret
   try {
-    const kind = acc.type === "qq" ? "qq" : "outlook_imap";
-    const r = await bg({ type: "BG_REVEAL_SECRET", kind, email: acc.email });
+    const r = await bg({ type: "BG_REVEAL_SECRET", kind: "qq", email: acc.email });
     if (r && r.ok && r.value) $("acctSecret").value = r.value;
   } catch {
     // agent down or no secret — leave empty
@@ -446,21 +464,17 @@ async function refreshStatus() {
     setAgentStatus(true, `${r.status.agent.host}:${r.status.agent.port}`);
     const cfg = r.status.config || {};
 
-    // Build the flat account list from qq + outlook IMAP accounts.
+    // Build the flat account list from qq accounts + outlook oauth.
     const next = [];
     const qq = (cfg.qq && cfg.qq.accounts) || [];
     for (const a of qq) next.push({ type: "qq", email: a.email, configured: !!a.configured });
-    const imap = (cfg.outlook && cfg.outlook.imapAccounts) || [];
-    for (const a of imap) next.push({ type: "outlook_imap", email: a.email, configured: !!a.configured });
+    // Outlook OAuth is a single account (no email in list, just the type).
+    const ol = cfg.outlook || {};
+    if (ol.clientIdSet) {
+      next.push({ type: "outlook_oauth", configured: !!ol.oauthConnected });
+    }
     accounts = next;
     renderAccountList();
-
-    // Outlook OAuth state (single account).
-    const ol = cfg.outlook || {};
-    if (ol.clientId) $("outlookClientId").value = ol.clientId;
-    setMsg("outlookState", T(ol.oauthConnected ? "oauth_connected" : "oauth_not_connected"));
-    const dot = $("navOauthDot");
-    if (dot) dot.classList.toggle("ok", !!ol.oauthConnected);
   } catch (e) {
     setAgentStatus(false, String(e && e.message ? e.message : e));
     accounts = [];
@@ -471,6 +485,8 @@ async function refreshStatus() {
 // ---- save / remove account -----------------------------------------------
 async function saveAccount() {
   const type = $("acctType").value;
+  if (type === "outlook_oauth") return; // OAuth has its own save button
+
   const email = $("acctEmail").value.trim();
   const secret = $("acctSecret").value.trim();
   if (!email || !secret) {
@@ -482,12 +498,7 @@ async function saveAccount() {
   setMsg("acctMsg", T("verifying"));
   $("acctSave").disabled = true;
   try {
-    let r;
-    if (type === "qq") {
-      r = await bg({ type: "BG_QQ_CONFIG", email, authCode: secret });
-    } else {
-      r = await bg({ type: "BG_OUTLOOK_CONFIG", payload: { mode: "imap", email, appPassword: secret } });
-    }
+    const r = await bg({ type: "BG_QQ_CONFIG", email, authCode: secret });
     if (r && r.ok) {
       setMsg("acctMsg", T("saved"));
       await refreshStatus();
@@ -514,12 +525,11 @@ function verifyErrorText(err) {
 async function removeAccount() {
   if (!selected || !selected.email) return;
   const { type, email } = selected;
+  if (type !== "qq") return; // Only QQ accounts can be removed this way
+
   setMsg("acctMsg", T("removing"));
   try {
-    const r =
-      type === "qq"
-        ? await bg({ type: "BG_QQ_REMOVE", email })
-        : await bg({ type: "BG_OUTLOOK_IMAP_REMOVE", email });
+    const r = await bg({ type: "BG_QQ_REMOVE", email });
     if (r && r.ok) {
       setMsg("acctMsg", T("cleared"));
       await refreshStatus();
@@ -534,25 +544,8 @@ async function removeAccount() {
   }
 }
 
-// ---- Outlook OAuth (unchanged logic, now in its own panel) ----------------
+// ---- Outlook OAuth (now integrated in account panel) ---------------------
 function wireOauth() {
-  $("outlookOauthSave").addEventListener("click", async () => {
-    setMsg("outlookOauthMsg", T("saving"));
-    try {
-      const clientId = $("outlookClientId").value.trim();
-      const r = await bg({ type: "BG_OUTLOOK_CONFIG", payload: { mode: "oauth", clientId } });
-      setMsg("outlookOauthMsg", r && r.ok ? T("saved") : T("failed_with", { err: r && r.error ? r.error : "" }));
-      if (r && r.ok) {
-        setMsg("outlookState", T("oauth_not_connected"));
-        await chrome.storage.local.set({ lastOutlookClientId: clientId });
-      }
-      await refreshStatus();
-    } catch (e) {
-      setMsg("outlookOauthMsg", T("failed_with", { err: String(e && e.message ? e.message : e) }));
-    }
-    setTimeout(() => setMsg("outlookOauthMsg", ""), 2500);
-  });
-
   $("outlookAuthStart").addEventListener("click", async () => {
     setMsg("deviceCodeMsg", T("starting"));
     try {
@@ -618,7 +611,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   $("navAgent").addEventListener("click", selectAgent);
-  $("navOauth").addEventListener("click", selectOauth);
   $("navAdd").addEventListener("click", selectAdd);
   $("refreshStatus").addEventListener("click", refreshStatus);
   $("saveExt").addEventListener("click", saveExtSettings);

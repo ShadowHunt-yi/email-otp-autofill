@@ -54,7 +54,7 @@
       add_account_title: "Add a new account",
       account_type: "Account type",
       type_qq: "QQ Mail (IMAP)",
-      type_outlook_imap: "Outlook (IMAP)",
+      type_outlook_oauth: "Outlook (OAuth)",
       remove_account: "Remove",
       removing: "Removing…",
       no_account_selected: "No account selected",
@@ -132,10 +132,7 @@
 
       // --- Outlook ---
       outlook_title: "Outlook",
-      outlook_desc: "Choose OAuth (Graph) or IMAP mode.",
-      mode: "Mode",
-      mode_oauth: "OAuth (Graph) (Recommended)",
-      mode_imap: "IMAP (App Password)",
+      outlook_desc: "Use OAuth to connect Outlook.",
       client_id: "Microsoft App Client ID",
       client_id_ph: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       client_id_hint:
@@ -149,19 +146,11 @@
       starting: "Starting…",
       oauth_connected: "OAuth connected",
       oauth_not_connected: "OAuth not connected",
+      oauth_no_client_id: "Admin has not configured Outlook Client ID yet. Please contact admin.",
       connected: "Connected.",
       expired: "Expired. Start again.",
       pending: "Pending ({err})",
       device_code_msg: "Open {uri} and enter code {code} (expires in {sec}s).",
-      outlook_email: "Outlook Email",
-      app_password: "App Password",
-      app_password_ph: "App password (recommended), or normal password if IMAP allows",
-      outlook_imap_howto:
-        'How to get it: sign in to <a href="https://account.microsoft.com/security" target="_blank" rel="noopener">Microsoft account · Security</a> → turn on "Two-step verification" first → open "Advanced security options" → under "App passwords" click "Create a new app password" → copy the generated password here.',
-      imap_no_echo: "The saved password is pre-filled as dots — click the eye to reveal it.",
-      save_outlook_imap: "Save Outlook IMAP",
-      imap_configured: "IMAP configured",
-      imap_not_configured: "IMAP not configured",
 
       // --- toast (background → content) ---
       toast_no_otp: "No recent OTP found.",
@@ -204,7 +193,7 @@
       add_account_title: "添加新账号",
       account_type: "账号类型",
       type_qq: "QQ 邮箱（IMAP）",
-      type_outlook_imap: "Outlook（IMAP）",
+      type_outlook_oauth: "Outlook（OAuth）",
       remove_account: "删除",
       removing: "删除中…",
       no_account_selected: "未选择账号",
@@ -282,10 +271,7 @@
 
       // --- Outlook ---
       outlook_title: "Outlook",
-      outlook_desc: "选择 OAuth（Graph）或 IMAP 模式。",
-      mode: "模式",
-      mode_oauth: "OAuth（Graph）（推荐）",
-      mode_imap: "IMAP（应用专用密码）",
+      outlook_oauth_desc: "使用 OAuth 连接 Outlook 邮箱。",
       client_id: "Microsoft 应用 Client ID",
       client_id_ph: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       client_id_hint:
@@ -299,19 +285,12 @@
       starting: "启动中…",
       oauth_connected: "OAuth 已连接",
       oauth_not_connected: "OAuth 未连接",
+      oauth_no_client_id: "管理员尚未配置 Outlook Client ID，请联系管理员。",
       connected: "已连接。",
       expired: "已过期，请重新开始。",
       pending: "等待中（{err}）",
       device_code_msg: "打开 {uri} 并输入代码 {code}（{sec} 秒后过期）。",
-      outlook_email: "Outlook 邮箱",
-      app_password: "应用专用密码",
-      app_password_ph: "应用专用密码（推荐），若 IMAP 允许也可用普通密码",
-      outlook_imap_howto:
-        '获取途径：登录 <a href="https://account.microsoft.com/security" target="_blank" rel="noopener">Microsoft 账户 · 安全</a> → 先开启「两步验证」→ 进入「高级安全选项」→ 在「应用密码」下点「创建新的应用密码」→ 复制生成的密码填入此处。',
-      imap_no_echo: "已保存的密码会以圆点回填，点右侧小眼睛可查看。",
-      save_outlook_imap: "保存 Outlook IMAP",
-      imap_configured: "IMAP 已配置",
-      imap_not_configured: "IMAP 未配置",
+      outlook_oauth_desc: "使用 OAuth 连接 Outlook 邮箱。",
 
       // --- toast (background → content) ---
       toast_no_otp: "未找到近期的验证码。",

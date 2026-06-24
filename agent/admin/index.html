@@ -100,6 +100,18 @@
       .login-wrap input { padding: 11px 13px; }
       .login-wrap .primary { padding: 11px 22px; }
 
+      /* password toggle */
+      .pwd-wrap { position: relative; display: flex; align-items: center; }
+      .pwd-wrap input { padding-right: 40px; flex: 1; }
+      .pwd-toggle {
+        position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+        background: none; border: none; color: var(--faint); cursor: pointer;
+        padding: 6px; display: flex; align-items: center; justify-content: center;
+        border-radius: 6px; transition: color .15s, background .15s;
+      }
+      .pwd-toggle:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+      .pwd-toggle svg { width: 18px; height: 18px; }
+
       /* header bar: title + overview + logout sticky on top */
       .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 
@@ -125,7 +137,14 @@
         <h2>🛡️ OTP Agent 管理端</h2>
         <div class="login-sub">输入管理员 Token 登录</div>
         <label for="token">Admin Token</label>
-        <input id="token" type="password" placeholder="OTP_ADMIN_TOKEN" />
+        <div class="pwd-wrap">
+          <input id="token" type="password" placeholder="OTP_ADMIN_TOKEN" />
+          <button type="button" class="pwd-toggle" id="pwdToggle" aria-label="显示密码">
+            <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
         <div class="row" style="margin-top:14px;">
           <button class="primary" id="loginBtn">登录</button>
           <span class="msg" id="loginMsg"></span>
@@ -212,6 +231,13 @@
             在 Azure 注册一个支持「个人 Microsoft 账户」的应用，并开启「Allow public client flows」，
             把 Application (client) ID 填入此处。所有用户的 Outlook 授权登录共用它。
           </div>
+          <div class="msg" style="margin-bottom:8px;">
+            📌 获取步骤：打开
+            <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener" style="color:var(--accent);">Azure 门户 · 应用注册</a>
+            → New registration → Supported account types 选「Personal Microsoft accounts only」→
+            无需填 Redirect URI → 注册后复制「Application (client) ID」填入下方。
+            还需在该应用的 Authentication 页把「Allow public client flows」设为 Yes（设备码流程要求）。
+          </div>
           <label for="outlookClientId">Microsoft App Client ID</label>
           <input id="outlookClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
           <div class="row" style="margin-top:12px;">
@@ -224,7 +250,7 @@
 
     <script>
       const $ = (id) => document.getElementById(id);
-      let TOKEN = sessionStorage.getItem("otp_admin_token") || "";
+      let TOKEN = localStorage.getItem("otp_admin_token") || "";
       // cached datasets for client-side filtering
       let USERS = [];
       let INVITES = [];
@@ -358,18 +384,29 @@
         $("loginCard").classList.toggle("hidden", dash);
         $("dash").classList.toggle("hidden", !dash);
       }
-      function logout() { TOKEN = ""; sessionStorage.removeItem("otp_admin_token"); show(false); }
+      function logout() { TOKEN = ""; localStorage.removeItem("otp_admin_token"); show(false); }
       async function login() {
         TOKEN = $("token").value.trim();
         if (!TOKEN) return;
         $("loginMsg").textContent = "验证中…";
         try {
           await api("/v1/admin/stats");
-          sessionStorage.setItem("otp_admin_token", TOKEN);
+          localStorage.setItem("otp_admin_token", TOKEN);
           $("loginMsg").textContent = "";
           show(true); await loadAll();
         } catch { $("loginMsg").textContent = "Token 无效"; }
       }
+
+      // password toggle
+      const EYE_ICON = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+      const EYE_OFF_ICON = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+      $("pwdToggle").addEventListener("click", () => {
+        const input = $("token");
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        $("eyeIcon").innerHTML = showing ? EYE_ICON : EYE_OFF_ICON;
+        $("pwdToggle").setAttribute("aria-label", showing ? "显示密码" : "隐藏密码");
+      });
 
       $("loginBtn").addEventListener("click", login);
       $("token").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
